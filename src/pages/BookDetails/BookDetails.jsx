@@ -142,7 +142,7 @@ export default function BookDetails() {
       setBookData(null);
       setRelatedBooks([]);
       setReviews([]);
-      setRatingCounts({1:0,2:0,3:0,4:0,5:0});
+      setRatingCounts({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
     } finally {
       setLoading(false);
     }
@@ -334,7 +334,7 @@ export default function BookDetails() {
               {showFullSummary
                 ? bookData.summary
                 : (bookData.summary || "").split(".")[0] +
-                  (bookData.summary ? "..." : "")}
+                (bookData.summary ? "..." : "")}
               {(bookData.summary || "").split(".").length > 1 && (
                 <button
                   onClick={() => setShowFullSummary(!showFullSummary)}
@@ -374,47 +374,41 @@ export default function BookDetails() {
           </div> */}
 
           {/* Availability + Audio + PDF (PDF right, aligned with Audio) */}
-<div className="mt-6">
-  {/* Availability badge stays above */}
-  <span className="text-green-600 font-medium text-sm inline-flex items-center">
-    <span className="h-3 w-3 bg-green-500 rounded-full animate-ping mr-2"></span>
-    Available
-  </span>
+          <div className="mt-6">
+            {/* Availability badge stays above */}
+            <span className="text-green-600 font-medium text-sm inline-flex items-center">
+              <span className="h-3 w-3 bg-green-500 rounded-full animate-ping mr-2"></span>
+              Available
+            </span>
 
-  {/* Row: Audio (left) + PDF (right) */}
-  <div className="mt-3 flex flex-wrap items-center gap-3">
-    {/* Audio section */}
-    <div className="flex items-center gap-2 text-sm">
-      <PlayCircle className="w-5 h-5 text-gray-600" />
-      <span className="text-gray-700">Audio Clip</span>
-      <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 sm:mx-3">
-        <div className="w-1/3 h-full bg-sky-500 rounded-full"></div>
-      </div>
-    </div>
+            {/* Row: Audio (left) + PDF (right) */}
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              {/* Audio section */}
+              <div className="flex items-center gap-2 text-sm">
+                <PlayCircle className="w-5 h-5 text-gray-600" />
+                <span className="text-gray-700">Audio Clip</span>
+                <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 sm:mx-3">
+                  <div className="w-1/3 h-full bg-sky-500 rounded-full"></div>
+                </div>
+              </div>
 
-    {/* PDF button stays on the right side */}
-    <a
-      href={bookData.pdfLink}
-      download
-      className="ml-auto inline-flex items-center gap-1 text-sm text-gray-700 font-semibold border border-gray-300 px-4 py-2 rounded hover:bg-gray-100"
-    >
-      <Download className="w-4 h-4" />
-      PDF
-    </a>
-  </div>
-</div>
+              {/* PDF button stays on the right side */}
+              <a
+                href={bookData.pdfLink}
+                download
+                className="ml-auto inline-flex items-center gap-1 text-sm text-gray-700 font-semibold border border-gray-300 px-4 py-2 rounded hover:bg-gray-100"
+              >
+                <Download className="w-4 h-4" />
+                PDF
+              </a>
+            </div>
+          </div>
 
 
           <div className="mt-6">
             <button
               onClick={() => {
-                const stored = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
-                const alreadyExists = stored.find((b) => b.id === bookData.id);
-                if (!alreadyExists) {
-                  stored.push({ ...bookData, quantity: 1 });
-                  localStorage.setItem("borrowedBooks", JSON.stringify(stored));
-                }
-                navigate("/fill-up-form");
+                navigate(`/fill-up-form/${bookData.id}`);
               }}
               className="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-6 py-3 rounded-md w-full sm:w-auto block text-center"
             >
@@ -445,18 +439,16 @@ export default function BookDetails() {
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`w-4 h-4 ${
-                            i < (book.rating ?? 0)
+                          className={`w-4 h-4 ${i < (book.rating ?? 0)
                               ? "text-yellow-500 fill-yellow-500"
                               : "text-gray-300"
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>
                     <p
-                      className={`text-xs font-medium mt-1 ${
-                        book.status === "Out Of Stock" ? "text-red-500" : "text-green-600"
-                      }`}
+                      className={`text-xs font-medium mt-1 ${book.status === "Out Of Stock" ? "text-red-500" : "text-green-600"
+                        }`}
                     >
                       {book.status || "Available"}
                     </p>
@@ -562,9 +554,8 @@ export default function BookDetails() {
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`w-4 h-4 ${
-                                i < r.stars ? "text-yellow-500 fill-yellow-500" : "text-gray-300"
-                              }`}
+                              className={`w-4 h-4 ${i < r.stars ? "text-yellow-500 fill-yellow-500" : "text-gray-300"
+                                }`}
                             />
                           ))}
                         </div>

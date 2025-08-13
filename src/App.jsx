@@ -23,7 +23,7 @@ function App() {
         <Route path="/" element={<Home />} />
                   <Route path="/book/:id" element={<BookDetails />} /> {/* <-- ADD THE NEW ROUTE */}
                   <Route path="/borrowed" element={<Borrowed />} />
-                  <Route path="/fill-up-form" element={<FillUpForm />} />
+                  <Route path="/fill-up-form/:id" element={<FillUpForm />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/upload" element={<UploadBookPage />} />
                   <Route path="/all-genres" element={<AllGenres />} />
