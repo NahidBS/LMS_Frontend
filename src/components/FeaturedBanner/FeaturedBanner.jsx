@@ -107,7 +107,8 @@ const FeaturedBanner = () => {
   useEffect(() => {
     const fetchFeaturedBooks = async () => {
       try {
-        const res = await api.get("/featured-books/list");
+        // const res = await api.get("/featured-books/list");
+        const res = await api.get("/book/list");
         const rawBooks = res.data; // array of {id, book: {...}}
         const normalizedBooks = rawBooks.map((item) => ({
           id: item.book.id,

@@ -179,6 +179,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaStar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import api from "../../api";
 import booksData from '../../data/sampleBooks'; // ⬅️ use your shared data
 
 const BookSlider = () => {

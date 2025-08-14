@@ -489,7 +489,7 @@ export default function NewBookCollections() {
     const fetchBooks = async () => {
       try {
         const response = await api.get("/book/new-collection");
-        const rawBooks = response.data.data || [];
+        const rawBooks = response.data || response.data.data || [];
 
         // Normalize data
         const normalizedBooks = rawBooks.map(book => ({

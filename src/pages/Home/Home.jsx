@@ -1,9 +1,6 @@
-
-
 // Home.jsx
-
 import { useMemo, useState, useEffect } from "react";
-
+import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../../components/Sidebar/Sidebar";
 import Section from "../../components/Section/Section";
 import books from "../../data/sampleBooks";
@@ -17,21 +14,30 @@ import api from "../../api";
 
 const transformBook = (book, index) => ({
   id: book.id || index,
-  title: book.name || "Untitled",
+  title: book.title || book.name ||  "Untitled",
   author: book.author || book.authors || "Unknown Author",
-  image: book.book_cover_url ||
-    "https://via.placeholder.com/150x220.png?text=No+Cover",
-  rating: book.average_rating || 0,
-  ratingCount: book.rating_count || 0,
-  summary: book.short_description || "",
-  category: book.category || "",
-  pdfLink: book.pdf_file_url || "",
+  image: book.book_cover_url || book.coverImage ||
+    "https://upload.wikimedia.org/wikipedia/en/7/78/Patterns_cover.jpg",
+  rating: book.average_rating || book.rating || 0,
+  ratingCount: book.ratingCount || book.reviewCount || 0,
+  summary: book.summary || book.shortDetails ||"",
+  publisher: book.publisher || "",
+  publishDate: book.publishDate || "",
+  // category: book.category || "",
+  category: book.category?.category_name || book.category || "Uncategorized", // ✅ updated
+  pdfLink: book.pdf_file_url || book.pdfLink || "",
+  audioLink: book.audio_file_url || "",
 });
 
 export default function Home() {
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const categoryFilter = location.state?.category || null;
+
+
   const [filter, setFilter] = useState(null);
   const [openFilters, setOpenFilters] = useState(false); // mobile sidebar
-
   const [books, setBooks] = useState({ recommended: [], popular: [] });
   const [loading, setLoading] = useState(true);
 
@@ -58,17 +64,22 @@ export default function Home() {
 
   //   return allBooks;
   // }, [filter, allBooks]);
+  const allBooks = useMemo(
+    () => [...(books?.recommended || []), ...(books?.popular || [])],
+    [books]
+  );
   const fetchBooks = async () => {
+    setLoading(true);
       try {
         const [popularRes , recommendedRes] = await Promise.all([
           api.get("/book/popular-books"),
           api.get("/book/recommended-books"),
         ]);
 
-        const recommendedBooks = (recommendedRes.data.data || []).map(
-          transformBook
-        );
-        const popularBooks = (popularRes.data.data || []).map(transformBook);
+        // const recommendedBooks = (recommendedRes.data.data || []).map(transformBook);
+        // const popularBooks = (popularRes.data.data || []).map(transformBook);
+        const recommendedBooks = (recommendedRes.data|| []).map(transformBook);
+        const popularBooks = (popularRes.data || []).map(transformBook);
 
         setBooks({
           recommended: recommendedBooks,
@@ -80,10 +91,41 @@ export default function Home() {
         setLoading(false);
       }
     };
+
+  
+    // Fetch all books initially
   useEffect(() => {
     console.log("Fetching book data for id:");
     fetchBooks();
   }, []);
+
+  // Fetch books by category when a filter is selected
+  useEffect(() => {
+    if (!filter || filter.type === "all") return;
+
+    const fetchFilteredBooks = async () => {
+      setLoading(true);
+      try {
+        const endpoint =
+          filter.type === "category"
+            ? `/book/category/${filter.value}`
+            : "/book/list";
+
+        const res = await api.get(endpoint);
+        const fetchedBooks = (res.data?.content || []).map(transformBook);
+
+        setBooks({ recommended: [], popular: fetchedBooks });
+      } catch (err) {
+        console.error("Failed to fetch filtered books:", err);
+        setBooks({ recommended: [], popular: [] });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFilteredBooks();
+  }, [filter]);
+
 
  
 
@@ -103,6 +145,9 @@ export default function Home() {
       </div>
     );
   }
+
+   const filtered = allBooks; // After fetching by category, `popular` holds the filtered books
+
 
   return (
     <div className="min-h-screen bg-gray-50">
