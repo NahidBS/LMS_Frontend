@@ -1,26 +1,22 @@
 // src/pages/ManageBooks/ManageBooks.jsx
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import axios from 'axios';
 import {
-  CalendarDays,
-  Upload,
-  Users,
-  BookOpen,
-  HelpCircle,
-  LogOut,
-  Layers,
   Plus,
   Pencil,
   Trash2,
   AlertTriangle,
+  Loader2,
+  FileText,
+  FileAudio2,
+  CheckCircle2,
+  Search,
 } from "lucide-react";
+import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
 
-import sectionedBooks from "../../data/sampleBooks";
+const API_BASE_URL = 'http://localhost:8080/api';
+const PLACEHOLDER_IMG = "https://dummyimage.com/80x80/e5e7eb/9ca3af&text=📘";
 
-const PLACEHOLDER_IMG =
-  "https://dummyimage.com/80x80/e5e7eb/9ca3af&text=📘";
-
-// ---------- helpers ----------
 function toYMD(dateStr) {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
@@ -31,309 +27,311 @@ function toYMD(dateStr) {
   return `${y}-${m}-${dd}`;
 }
 
-function normalizeFromSection(item) {
+function normalizeBook(book) {
   return {
-    id: String(item.id ?? crypto.randomUUID()),
-    title: item.title ?? "—",
-    author: item.author ?? item.authors ?? "—",
-    category: item.category ?? "—",
-    copies: "—",
-    updatedOn: toYMD(item.publishDate ?? item.stockDate ?? ""),
-    cover: item.image ?? item.coverImage ?? PLACEHOLDER_IMG,
-    publisher: item.publisher ?? "—",
-    isbn: item.isbn ?? "—",
-    rack: item.rack ?? "—",
-    status:
-      item.status?.toLowerCase().includes("disable") ||
-      item.status?.toLowerCase().includes("out of stock")
-        ? "Disable"
-        : "Enable",
+    id: book.id,
+    title: book.name || "—",
+    author: book.author || "—",
+    category: book.categoryName || "—",
+    copies: book.totalCopies || "—",
+    availableCopies: book.availableCopies || "—",
+    updatedOn: book.createdAt || book.updatedAt || "",
+    cover: book.coverImageUrl || PLACEHOLDER_IMG,
+    pdf: book.pdfUrl || "",
+    audio: book.audioUrl || "",
+    description: book.shortDetails || "",
+    isbn: book.isbn || "",
+    publicationYear: book.publicationYear || "",
+    format: book.format || "",
+    categoryId: book.categoryId || null,
   };
 }
-
-function normalizeFromJson(item) {
-  return {
-    id: String(item.id ?? crypto.randomUUID()),
-    title: item.title ?? "—",
-    author: item.authors ?? item.author ?? "—",
-    category: item.category ?? "—",
-    copies: "—",
-    updatedOn: toYMD(item.publishDate ?? ""),
-    cover: item.coverImage ?? PLACEHOLDER_IMG,
-    publisher: item.publisher ?? "—",
-    isbn: item.isbn ?? "—",
-    rack: item.rack ?? "—",
-    status: String(item.summary || "")
-      .toLowerCase()
-      .includes("out of stock")
-      ? "Disable"
-      : "Enable",
-  };
-}
-
-const withCurrent = (arr, curr) =>
-  Array.from(new Set([...(curr ? [curr] : []), ...arr]));
 
 export default function ManageBooks() {
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pagination, setPagination] = useState({
+    page: 0,
+    size: 10,
+    totalElements: 0,
+  });
+
+  const fetchBooks = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        page: pagination.page,
+        size: pagination.size,
+      };
+      
+      let response;
+      if (searchQuery) {
+        response = await axios.get(`${API_BASE_URL}/book/search`, {
+          params: { query: searchQuery, ...params }
+        });
+      } else {
+        response = await axios.get(`${API_BASE_URL}/book/list`, { params });
+      }
+      
+      setBooks(response.data.content.map(normalizeBook));
+      setPagination(prev => ({
+        ...prev,
+        totalElements: response.data.totalElements
+      }));
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     document.title = "Manage Books";
-  }, []);
+    fetchBooks();
+  }, [pagination.page, pagination.size, searchQuery]);
 
-  // --------- load books.json from PUBLIC ----------
-  const [booksJson, setBooksJson] = useState([]);
-  useEffect(() => {
-    const url = `${import.meta.env.BASE_URL}books.json`;
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => setBooksJson(Array.isArray(data) ? data : []))
-      .catch(() => setBooksJson([]));
-  }, []);
-
-  // build table data (normalized)
-  const baseBooks = useMemo(() => {
-    const fromSections = [];
-    if (sectionedBooks) {
-      const {
-        recommended = [],
-        popular = [],
-        business = [],
-        featuredBooks = [],
-        relatedBooks = [],
-      } = sectionedBooks;
-      [...recommended, ...popular, ...business, ...featuredBooks, ...relatedBooks].forEach(
-        (b) => fromSections.push(normalizeFromSection(b))
-      );
-    }
-    const fromJson = booksJson.map(normalizeFromJson);
-
-    // dedupe by title+author
-    const seen = new Set();
-    const combined = [];
-    [...fromSections, ...fromJson].forEach((b) => {
-      const key = `${(b.title || "").trim().toLowerCase()}__${(b.author || "")
-        .trim()
-        .toLowerCase()}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        combined.push(b);
-      }
-    });
-
-    combined.sort((a, b) => String(b.updatedOn).localeCompare(String(a.updatedOn)));
-    return combined;
-  }, [booksJson]);
-
-  // displayed list (allows local add/edit/delete)
-  const [displayed, setDisplayed] = useState([]);
-  useEffect(() => setDisplayed(baseBooks), [baseBooks]);
-
-  // --------- Add/Edit modal state ----------
+  // Modal states
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [mode, setMode] = useState("create"); // 'create' | 'edit'
-  const [editingIndex, setEditingIndex] = useState(-1);
+  const [mode, setMode] = useState("create");
+  const [editingId, setEditingId] = useState(null);
 
-  // --------- Delete confirmation modal state ----------
+  // Delete confirmation
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingDeleteIndex, setPendingDeleteIndex] = useState(-1);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
-  const options = useMemo(() => {
-    const authors = new Set();
-    const publishers = new Set();
-    const categories = new Set();
-    baseBooks.forEach((b) => {
-      if (b.author && b.author !== "—") authors.add(b.author);
-      if (b.publisher && b.publisher !== "—") publishers.add(b.publisher);
-      if (b.category && b.category !== "—") categories.add(b.category);
-    });
-    return {
-      authors: Array.from(authors).sort(),
-      publishers: Array.from(publishers).sort(),
-      categories: Array.from(categories).sort(),
-      racks: ["R1", "R2", "R3", "R4"],
-      status: ["Enable", "Disable"],
-    };
-  }, [baseBooks]);
-
+  // Form state
   const emptyForm = {
-    title: "",
-    isbn: "",
-    copies: "",
+    name: "",
     author: "",
-    publisher: "",
-    category: "",
-    rack: "",
-    status: "",
+    categoryId: "",
+    shortDetails: "",
+    totalCopies: "",
+    availableCopies: "",
+    isbn: "",
+    publicationYear: "",
+    format: "",
+    coverFile: null,
+    coverUrl: "",
+    imageLoading: false,
+    pdfFile: null,
+    pdfUrl: "",
+    pdfLoading: false,
+    audioFile: null,
+    audioUrl: "",
+    audioLoading: false,
   };
   const [form, setForm] = useState(emptyForm);
 
   const rowToForm = (row) => ({
-    title: row.title && row.title !== "—" ? row.title : "",
-    isbn: row.isbn && row.isbn !== "—" ? row.isbn : "",
-    copies:
-      row.copies !== undefined && row.copies !== "—" ? String(row.copies) : "",
-    author: row.author && row.author !== "—" ? row.author : "",
-    publisher: row.publisher && row.publisher !== "—" ? row.publisher : "",
-    category: row.category && row.category !== "—" ? row.category : "",
-    rack: row.rack && row.rack !== "—" ? row.rack : "",
-    status: row.status && row.status !== "—" ? row.status : "",
+    name: row.title || "",
+    author: row.author || "",
+    categoryId: row.categoryId || "",
+    shortDetails: row.description || "",
+    totalCopies: row.copies || "",
+    availableCopies: row.availableCopies || "",
+    isbn: row.isbn || "",
+    publicationYear: row.publicationYear || "",
+    format: row.format || "",
+    coverFile: null,
+    coverUrl: row.cover || "",
+    imageLoading: false,
+    pdfFile: null,
+    pdfUrl: row.pdf || "",
+    pdfLoading: false,
+    audioFile: null,
+    audioUrl: row.audio || "",
+    audioLoading: false,
   });
 
   const onOpenCreate = () => {
     setMode("create");
-    setEditingIndex(-1);
+    setEditingId(null);
     setForm(emptyForm);
     setOpen(true);
   };
 
-  const onOpenEdit = (row, index) => {
+  const onOpenEdit = (book) => {
     setMode("edit");
-    setEditingIndex(index);
-    setForm(rowToForm(row));
+    setEditingId(book.id);
+    setForm(rowToForm(book));
     setOpen(true);
   };
-
-  const onClose = useCallback(() => setOpen(false), []);
-  const onCloseConfirm = useCallback(() => setConfirmOpen(false), []);
-
-  // lock page scroll when any modal open
-  useEffect(() => {
-    const anyOpen = open || confirmOpen;
-    document.body.style.overflow = anyOpen ? "hidden" : "";
-  }, [open, confirmOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
   };
 
-  const handleSave = async () => {
-    if (!form.title) {
-      alert("Please enter a book name.");
-      return;
-    }
-    setSaving(true);
+  const handleFile = (e, kind) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    if (mode === "edit" && editingIndex >= 0) {
-      setDisplayed((prev) => {
-        const next = [...prev];
-        const row = { ...next[editingIndex] };
-        row.title = form.title || "—";
-        row.isbn = form.isbn || "—";
-        row.copies = form.copies || "—";
-        row.author = form.author || "—";
-        row.publisher = form.publisher || "—";
-        row.category = form.category || "—";
-        row.rack = form.rack || "—";
-        row.status = form.status || "Enable";
-        row.updatedOn = toYMD(new Date().toISOString());
-        next[editingIndex] = row;
-        return next;
-      });
-    } else {
-      const newRow = {
-        id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        title: form.title || "—",
-        author: form.author || "—",
-        category: form.category || "—",
-        copies: form.copies || "—",
-        updatedOn: toYMD(new Date().toISOString()),
-        cover: PLACEHOLDER_IMG,
-        isbn: form.isbn || "—",
-        publisher: form.publisher || "—",
-        rack: form.rack || "—",
-        status: form.status || "Enable",
-      };
-      setDisplayed((prev) => [newRow, ...prev]);
+    const url = URL.createObjectURL(file);
+    
+    if (kind === "image") {
+      setForm((f) => ({ ...f, imageLoading: true }));
+      setTimeout(() => {
+        setForm((f) => ({
+          ...f,
+          coverFile: file,
+          coverUrl: url,
+          imageLoading: false,
+        }));
+      }, 1000);
+    } else if (kind === "pdf") {
+      setForm((f) => ({ ...f, pdfLoading: true }));
+      setTimeout(() => {
+        setForm((f) => ({
+          ...f,
+          pdfFile: file,
+          pdfUrl: url,
+          pdfLoading: false,
+        }));
+      }, 1000);
+    } else if (kind === "audio") {
+      setForm((f) => ({ ...f, audioLoading: true }));
+      setTimeout(() => {
+        setForm((f) => ({
+          ...f,
+          audioFile: file,
+          audioUrl: url,
+          audioLoading: false,
+        }));
+      }, 1000);
     }
-
-    setSaving(false);
-    setOpen(false);
   };
 
-  const requestDelete = (index) => {
-    setPendingDeleteIndex(index);
+  const handleSave = async () => {
+    if (!form.name || !form.author) {
+      alert("Please enter book name and author");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const bookData = {
+        name: form.name,
+        author: form.author,
+        categoryId: form.categoryId ? Number(form.categoryId) : null,
+        shortDetails: form.shortDetails,
+        totalCopies: form.totalCopies ? parseInt(form.totalCopies) : 1,
+        availableCopies: form.availableCopies ? parseInt(form.availableCopies) : form.totalCopies ? parseInt(form.totalCopies) : 1,
+        isbn: form.isbn,
+        publicationYear: form.publicationYear ? parseInt(form.publicationYear) : null,
+        format: form.format,
+      };
+
+      if (form.coverFile || form.pdfFile || form.audioFile) {
+        const formData = new FormData();
+        formData.append('bookData', JSON.stringify(bookData));
+        if (form.coverFile) formData.append('bookCover', form.coverFile);
+        if (form.pdfFile) formData.append('pdfFile', form.pdfFile);
+        if (form.audioFile) formData.append('audioFile', form.audioFile);
+
+        if (mode === "edit" && editingId) {
+          await axios.put(`${API_BASE_URL}/book/edit/${editingId}`, bookData);
+          await axios.post(`${API_BASE_URL}/book/create/file`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+        } else {
+          await axios.post(`${API_BASE_URL}/book/create/file`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+        }
+      } else {
+        if (mode === "edit" && editingId) {
+          await axios.put(`${API_BASE_URL}/book/edit/${editingId}`, bookData);
+        } else {
+          await axios.post(`${API_BASE_URL}/book/create`, bookData);
+        }
+      }
+
+      await fetchBooks();
+      setOpen(false);
+      setSavedToast(true);
+      setTimeout(() => setSavedToast(false), 2000);
+    } catch (err) {
+      alert(`Error saving book: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestDelete = (id) => {
+    setPendingDeleteId(id);
     setConfirmOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (pendingDeleteIndex < 0) return;
-    setDisplayed((prev) => prev.filter((_, i) => i !== pendingDeleteIndex));
-    setPendingDeleteIndex(-1);
-    setConfirmOpen(false);
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    try {
+      await axios.delete(`${API_BASE_URL}/book/delete/${pendingDeleteId}`);
+      setBooks(books.filter(book => book.id !== pendingDeleteId));
+      setConfirmOpen(false);
+    } catch (err) {
+      alert(`Error deleting book: ${err.response?.data?.message || err.message}`);
+    }
   };
 
-  const navItem =
-    "flex items-center gap-2 px-3 py-3 text-gray-700 hover:text-sky-500 transition-colors";
-  const navItemActive =
-    "flex items-center gap-2 px-3 py-3 text-sky-600 font-medium";
+  // Toast state
+  const [savedToast, setSavedToast] = useState(false);
+
+  // Pagination controls
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handlePageSizeChange = (size) => {
+    setPagination(prev => ({ ...prev, size, page: 0 }));
+  };
+
+  if (loading && books.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-sky-600" size={32} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        Error: {error}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-md px-4 py-6 flex flex-col justify-between">
-        <div>
-          <h2 className="text-xl font-bold mb-6">Library</h2>
-          <ul className="space-y-2">
-            <li>
-              <Link to="/admin" className={navItem}>
-                <CalendarDays size={18} /> Dashboard
-              </Link>
-            </li>
-            <li>
-              <Link to="/admin/manage-books" className={navItemActive}>
-                <BookOpen size={18} /> Manage Books
-              </Link>
-            </li>
-            <li>
-              <Link to="/admin/manage-category" className={navItem}>
-                <Layers size={18} /> Manage Category
-              </Link>
-            </li>
-            {/* <li>
-              <Link to="/upload" className={navItem}>
-                <Upload size={18} /> Upload Books
-              </Link>
-            </li> */}
-            <li>
-              <Link to="/members" className={navItem}>
-                <Users size={18} /> Member
-              </Link>
-            </li>
-            <li>
-              <Link to="/borrowed" className={navItem}>
-                <BookOpen size={18} /> Check-out Books
-              </Link>
-            </li>
-            <li>
-              <Link to="/help" className={navItem}>
-                <HelpCircle size={18} /> Help
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <Link
-            to="/logout"
-            className="flex items-center gap-2 px-3 py-3 text-red-600 font-medium hover:underline underline-offset-4"
-          >
-            <LogOut size={18} /> Logout
-          </Link>
-        </div>
-      </aside>
+      <Sidebar activePage="manage-books" />
 
-      {/* Main */}
       <main className="flex-1 p-6 space-y-6">
         <h1 className="text-xl md:text-2xl font-bold text-gray-800">Manage Books</h1>
 
-        {/* Card with ash border */}
-        <section className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
-            <span className="text-sm font-medium text-gray-700">Books List</span>
+        <section className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4">
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search books..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              />
+            </div>
+            
             <button
               type="button"
               onClick={onOpenCreate}
-              className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="w-full md:w-auto inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
             >
               <Plus size={16} /> Add Book
             </button>
@@ -343,50 +341,47 @@ export default function ManageBooks() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead className="bg-gray-50">
-                  <tr className="text-left border-b">
-                    <th className="py-3 px-4">Book</th>
-                    <th className="py-3 px-4">Author</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4 whitespace-nowrap">No of copy</th>
-                    <th className="py-3 px-4">Action</th>
+                  <tr className="text-left">
+                    <th className="py-3 px-4 min-w-[200px]">Book</th>
+                    <th className="py-3 px-4 min-w-[150px]">Author</th>
+                    <th className="py-3 px-4 min-w-[120px]">Category</th>
+                    <th className="py-3 px-4 min-w-[100px]">Total Copies</th>
+                    <th className="py-3 px-4 min-w-[100px]">Available</th>
+                    <th className="py-3 px-4 min-w-[150px]">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayed.map((b, i) => (
-                    <tr
-                      key={`${(b.title || "").toLowerCase()}__${(b.author || "")
-                        .toLowerCase()}__${i}`}
-                      className={`border-b last:border-0 ${
-                        i % 2 ? "bg-white" : "bg-gray-50"
-                      }`}
-                    >
+                  {books.map((book) => (
+                    <tr key={book.id} className="border-t hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <img
-                            src={b.cover || PLACEHOLDER_IMG}
-                            alt={b.title}
+                            src={book.cover}
+                            alt={book.title}
                             className="h-10 w-10 rounded object-cover bg-gray-100 flex-shrink-0"
                           />
-                          <p className="font-semibold text-gray-800 truncate">
-                            {b.title}
-                          </p>
+                          <div>
+                            <p className="font-semibold text-gray-800">{book.title}</p>
+                            {book.isbn && (
+                              <p className="text-xs text-gray-500">ISBN: {book.isbn}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-700">{b.author}</td>
-                      <td className="py-3 px-4 text-gray-700">{b.category}</td>
-                      <td className="py-3 px-4 text-gray-700">{b.copies ?? "—"}</td>
+                      <td className="py-3 px-4 text-gray-700">{book.author}</td>
+                      <td className="py-3 px-4 text-gray-700">{book.category}</td>
+                      <td className="py-3 px-4 text-gray-700">{book.copies}</td>
+                      <td className="py-3 px-4 text-gray-700">{book.availableCopies}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <button
-                            type="button"
-                            onClick={() => onOpenEdit(b, i)}
+                            onClick={() => onOpenEdit(book)}
                             className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
                           >
                             <Pencil size={14} /> Edit
                           </button>
                           <button
-                            type="button"
-                            onClick={() => requestDelete(i)}
+                            onClick={() => requestDelete(book.id)}
                             className="inline-flex items-center gap-1 rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-300"
                           >
                             <Trash2 size={14} /> Delete
@@ -395,559 +390,357 @@ export default function ManageBooks() {
                       </td>
                     </tr>
                   ))}
-
-                  {displayed.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="py-6 px-4 text-center text-gray-500">
-                        No books found in your data sources.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            <div className="flex flex-col md:flex-row items-center justify-between mt-4 gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Rows per page:</span>
+                <select
+                  value={pagination.size}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                  className="rounded border border-gray-300 px-2 py-1 text-sm"
+                >
+                  {[5, 10, 20, 50].map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 0}
+                  className="px-3 py-1 rounded border border-gray-300 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-gray-700">
+                  Page {pagination.page + 1} of {Math.ceil(pagination.totalElements / pagination.size)}
+                </span>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={(pagination.page + 1) * pagination.size >= pagination.totalElements}
+                  className="px-3 py-1 rounded border border-gray-300 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </section>
-      </main>
 
-      {/* ---------- Add/Edit Book Modal (no inner scroll, 2-column layout) ---------- */}
-      {open && (
-        <div
-          className="fixed inset-0 z-50"
-          aria-modal="true"
-          role="dialog"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onClose();
-          }}
-        >
-          <div className="absolute inset-0 bg-black/50 opacity-0 animate-[fadeIn_.2s_ease-out_forwards]" />
-          <div className="absolute inset-0 flex items-start justify-center pt-8 md:pt-12">
-            <div
-              className="
-                w-full max-w-3xl md:max-w-4xl mx-4 rounded-lg bg-white shadow-lg border border-gray-200
-                opacity-0 translate-y-3 scale-[0.98] animate-[popIn_.22s_ease-out_forwards]
-              "
-            >
-              <div className="px-6 py-4 border-b flex items-center gap-2">
-                {mode === "edit" ? (
-                  <Pencil size={20} className="text-gray-700" />
-                ) : (
-                  <Plus size={20} className="text-gray-700" />
-                )}
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {mode === "edit" ? "Edit book" : "Add book"}
-                </h3>
+        {/* Add/Edit Modal */}
+        {open && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" onClick={() => setOpen(false)}>
+                <div className="absolute inset-0 bg-black/50"></div>
               </div>
-
-              <div className="px-6 py-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1">Book</label>
-                    <input
-                      name="title"
-                      value={form.title}
-                      onChange={handleChange}
-                      placeholder="book name"
-                      className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">ISBN No</label>
-                    <input
-                      name="isbn"
-                      value={form.isbn}
-                      onChange={handleChange}
-                      placeholder="isbn name"
-                      className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">No of copy</label>
-                    <input
-                      name="copies"
-                      value={form.copies}
-                      onChange={handleChange}
-                      placeholder="No of copy"
-                      className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Author</label>
-                    <select
-                      name="author"
-                      value={form.author}
-                      onChange={handleChange}
-                      className="w-full rounded border border-gray-300 px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    >
-                      <option value="">Select</option>
-                      {withCurrent(options.authors, form.author).map((a) => (
-                        <option key={a} value={a}>
-                          {a}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Publisher</label>
-                    <select
-                      name="publisher"
-                      value={form.publisher}
-                      onChange={handleChange}
-                      className="w-full rounded border border-gray-300 px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    >
-                      <option value="">Select</option>
-                      {withCurrent(options.publishers, form.publisher).map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Category</label>
-                    <select
-                      name="category"
-                      value={form.category}
-                      onChange={handleChange}
-                      className="w-full rounded border border-gray-300 px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    >
-                      <option value="">Select</option>
-                      {withCurrent(options.categories, form.category).map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Rack</label>
-                    <select
-                      name="rack"
-                      value={form.rack}
-                      onChange={handleChange}
-                      className="w-full rounded border border-gray-300 px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    >
-                      <option value="">Select</option>
-                      {withCurrent(options.racks, form.rack).map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Status</label>
-                    <select
-                      name="status"
-                      value={form.status}
-                      onChange={handleChange}
-                      className="w-full rounded border border-gray-300 px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    >
-                      <option value="">Select</option>
-                      {withCurrent(options.status, form.status).map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 py-4 border-t flex justify-end gap-3 bg-white">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-md px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-md px-5 py-2 text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-70"
-                >
-                  {mode === "edit" ? (saving ? "Updating…" : "Update") : saving ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------- Delete Confirmation Modal ---------- */}
-      {confirmOpen && (
-        <div
-          className="fixed inset-0 z-50"
-          aria-modal="true"
-          role="dialog"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onCloseConfirm();
-          }}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/50 opacity-0 animate-[fadeIn_.2s_ease-out_forwards]" />
-
-          {/* Panel */}
-          <div className="absolute inset-0 flex items-center justify-center px-4">
-            <div className="w-full max-w-md rounded-lg bg-white shadow-lg border border-gray-200 opacity-0 translate-y-2 animate-[popIn_.2s_ease-out_forwards]">
-              <div className="px-6 py-5">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5">
-                    <AlertTriangle className="text-amber-500" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Are you sure you want to delete this record?
-                    </h3>
-                    {pendingDeleteIndex > -1 && (
-                      <p className="mt-1 text-sm text-gray-600">
-                        <span className="font-medium">
-                          {displayed[pendingDeleteIndex]?.title || "This book"}
-                        </span>{" "}
-                        will be permanently removed from the list.
-                      </p>
+              
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div className="bg-white px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    {mode === "edit" ? (
+                      <Pencil size={20} className="text-gray-700" />
+                    ) : (
+                      <Plus size={20} className="text-gray-700" />
                     )}
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      {mode === "edit" ? "Edit Book" : "Add New Book"}
+                    </h3>
                   </div>
                 </div>
-              </div>
 
-              <div className="px-6 py-4 border-t bg-white flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={onCloseConfirm}
-                  className="rounded-md px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDelete}
-                  className="rounded-md px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500"
-                >
-                  Delete
-                </button>
+                <div className="px-6 pb-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Book Name */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm text-gray-700 mb-1">Book Name*</label>
+                      <input
+                        name="name"
+                        value={form.name}
+                        onChange={handleChange}
+                        placeholder="Enter book name"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        required
+                      />
+                    </div>
+
+                    {/* Author */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Author*</label>
+                      <input
+                        name="author"
+                        value={form.author}
+                        onChange={handleChange}
+                        placeholder="Enter author name"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        required
+                      />
+                    </div>
+
+                    {/* Category ID */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Category ID</label>
+                      <input
+                        name="categoryId"
+                        value={form.categoryId}
+                        onChange={handleChange}
+                        placeholder="Enter category ID"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        type="number"
+                      />
+                    </div>
+
+                    {/* Total Copies */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Total Copies*</label>
+                      <input
+                        name="totalCopies"
+                        value={form.totalCopies}
+                        onChange={handleChange}
+                        placeholder="Enter total copies"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        type="number"
+                        min="1"
+                        required
+                      />
+                    </div>
+
+                    {/* Available Copies */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Available Copies</label>
+                      <input
+                        name="availableCopies"
+                        value={form.availableCopies}
+                        onChange={handleChange}
+                        placeholder="Enter available copies"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        type="number"
+                        min="0"
+                      />
+                    </div>
+
+                    {/* ISBN */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">ISBN</label>
+                      <input
+                        name="isbn"
+                        value={form.isbn}
+                        onChange={handleChange}
+                        placeholder="Enter ISBN"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                      />
+                    </div>
+
+                    {/* Publication Year */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Publication Year</label>
+                      <input
+                        name="publicationYear"
+                        value={form.publicationYear}
+                        onChange={handleChange}
+                        placeholder="Enter publication year"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        type="number"
+                        min="0"
+                      />
+                    </div>
+
+                    {/* Format */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Format</label>
+                      <select
+                        name="format"
+                        value={form.format}
+                        onChange={handleChange}
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                      >
+                        <option value="">Select format</option>
+                        <option value="HARD_COPY">Hard Copy</option>
+                        <option value="E_BOOK">E-Book</option>
+                        <option value="AUDIO">Audio</option>
+                      </select>
+                    </div>
+
+                    {/* Cover Image */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm text-gray-700 mb-1">Cover Image</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFile(e, "image")}
+                          className="w-full rounded border border-gray-300 px-3 py-2 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        />
+                        <div className="w-16 h-16 rounded-md bg-gray-100 overflow-hidden flex items-center justify-center">
+                          {form.imageLoading ? (
+                            <Loader2 className="animate-spin text-gray-400" size={20} />
+                          ) : form.coverUrl ? (
+                            <img
+                              src={form.coverUrl}
+                              alt="Cover preview"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400">Preview</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PDF File */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">PDF File</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          onChange={(e) => handleFile(e, "pdf")}
+                          className="w-full rounded border border-gray-300 px-3 py-2 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        />
+                        <div className="w-16 h-16 rounded-md bg-gray-100 flex items-center justify-center">
+                          {form.pdfLoading ? (
+                            <Loader2 className="animate-spin text-gray-400" size={20} />
+                          ) : form.pdfUrl ? (
+                            <FileText className="text-sky-600" size={24} />
+                          ) : (
+                            <span className="text-xs text-gray-400">PDF</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Audio File */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Audio File</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          onChange={(e) => handleFile(e, "audio")}
+                          className="w-full rounded border border-gray-300 px-3 py-2 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        />
+                        <div className="w-16 h-16 rounded-md bg-gray-100 flex items-center justify-center">
+                          {form.audioLoading ? (
+                            <Loader2 className="animate-spin text-gray-400" size={20} />
+                          ) : form.audioUrl ? (
+                            <FileAudio2 className="text-sky-600" size={24} />
+                          ) : (
+                            <span className="text-xs text-gray-400">Audio</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm text-gray-700 mb-1">Description</label>
+                      <textarea
+                        name="shortDetails"
+                        value={form.shortDetails}
+                        onChange={handleChange}
+                        rows={3}
+                        placeholder="Enter book description"
+                        className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="rounded-md px-4 py-2 text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="rounded-md px-5 py-2 text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-70"
+                  >
+                    {saving ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="animate-spin" size={16} />
+                        {mode === "edit" ? "Updating..." : "Saving..."}
+                      </span>
+                    ) : mode === "edit" ? "Update Book" : "Add Book"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* animations */}
-      <style>{`
-        @keyframes fadeIn { to { opacity: 1 } }
-        @keyframes popIn { to { opacity: 1; transform: translateY(0) scale(1) } }
-      `}</style>
+        {/* Delete Confirmation Modal */}
+        {confirmOpen && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" onClick={() => setConfirmOpen(false)}>
+                <div className="absolute inset-0 bg-black/50"></div>
+              </div>
+              
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <div className="bg-white px-6 py-5">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-amber-500 mt-0.5" size={24} />
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        Confirm Deletion
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Are you sure you want to delete this book? This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmOpen(false)}
+                    className="rounded-md px-4 py-2 text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmDelete}
+                    className="rounded-md px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500"
+                  >
+                    Delete Book
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Saved Toast */}
+        {savedToast && (
+          <div className="fixed bottom-6 right-6 z-[60] animate-[toastIn_.25s_ease-out]">
+            <div className="flex items-start gap-3 rounded-xl bg-white shadow-lg ring-1 ring-black/5 px-4 py-3">
+              <CheckCircle2 className="text-green-600 mt-0.5" size={22} />
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {mode === "edit" ? "Book Updated" : "Book Added"}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {mode === "edit" 
+                    ? "Your changes have been saved successfully." 
+                    : "The new book has been added to the library."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// // src/pages/ManageBooks/ManageBooks.jsx
-// import { useEffect, useMemo, useState } from "react";
-// import { Link } from "react-router-dom";
-// import {
-//   CalendarDays,
-//   Upload,
-//   Users,
-//   BookOpen,
-//   HelpCircle,
-//   LogOut,
-//   Layers,
-//   Plus,
-//   Pencil,
-//   Trash2,
-// } from "lucide-react";
-
-// // Sectioned data from src (recommended, popular, etc.)
-// import sectionedBooks from "../../data/sampleBooks";
-
-// const PLACEHOLDER_IMG =
-//   "https://dummyimage.com/80x80/e5e7eb/9ca3af&text=📘";
-
-// // ---- UI helpers ----
-// function toYMD(dateStr) {
-//   if (!dateStr) return "—";
-//   const d = new Date(dateStr);
-//   if (isNaN(d.getTime())) return dateStr;
-//   const y = d.getFullYear();
-//   const m = String(d.getMonth() + 1).padStart(2, "0");
-//   const dd = String(d.getDate()).padStart(2, "0");
-//   return `${y}-${m}-${dd}`;
-// }
-
-// // Normalize from sampleBooks.js
-// function normalizeFromSection(item) {
-//   return {
-//     id: String(item.id ?? crypto.randomUUID()),
-//     title: item.title ?? "—",
-//     author: item.author ?? item.authors ?? "—",
-//     category: item.category ?? "—",
-//     copies: "—",
-//     // kept for sorting/dedup only
-//     updatedOn: toYMD(item.publishDate ?? item.stockDate ?? ""),
-//     cover: item.image ?? item.coverImage ?? PLACEHOLDER_IMG,
-//   };
-// }
-
-// // Normalize from public/books.json
-// function normalizeFromJson(item) {
-//   return {
-//     id: String(item.id ?? crypto.randomUUID()),
-//     title: item.title ?? "—",
-//     author: item.authors ?? item.author ?? "—",
-//     category: item.category ?? "—",
-//     copies: "—",
-//     // kept for sorting/dedup only
-//     updatedOn: toYMD(item.publishDate ?? ""),
-//     cover: item.coverImage ?? PLACEHOLDER_IMG,
-//   };
-// }
-
-// export default function ManageBooks() {
-//   useEffect(() => {
-//     document.title = "Manage Books";
-//   }, []);
-
-//   // Fetch books.json from PUBLIC (don’t import from public/)
-//   const [booksJson, setBooksJson] = useState([]);
-//   useEffect(() => {
-//     const url = `${import.meta.env.BASE_URL}books.json`;
-//     fetch(url)
-//       .then((res) => {
-//         if (!res.ok) throw new Error(`Failed to load ${url}`);
-//         return res.json();
-//       })
-//       .then((data) => setBooksJson(Array.isArray(data) ? data : []))
-//       .catch(() => setBooksJson([]));
-//   }, []);
-
-//   // Build table data
-//   const tableBooks = useMemo(() => {
-//     const fromSections = [];
-//     if (sectionedBooks) {
-//       const {
-//         recommended = [],
-//         popular = [],
-//         business = [],
-//         featuredBooks = [],
-//         relatedBooks = [],
-//       } = sectionedBooks;
-//       [...recommended, ...popular, ...business, ...featuredBooks, ...relatedBooks].forEach(
-//         (b) => fromSections.push(normalizeFromSection(b))
-//       );
-//     }
-
-//     const fromJson = booksJson.map(normalizeFromJson);
-
-//     // de-duplicate by title+author (case/space insensitive)
-//     const seen = new Set();
-//     const combined = [];
-//     [...fromSections, ...fromJson].forEach((b) => {
-//       const key = `${(b.title || "").trim().toLowerCase()}__${(b.author || "")
-//         .trim()
-//         .toLowerCase()}`;
-//       if (!seen.has(key)) {
-//         seen.add(key);
-//         combined.push(b);
-//       }
-//     });
-
-//     // optional sort by date (kept internally; not displayed)
-//     combined.sort((a, b) => String(b.updatedOn).localeCompare(String(a.updatedOn)));
-
-//     return combined;
-//   }, [booksJson]);
-
-//   // Sidebar item sizing (same look, just comfy height)
-//   const navItem =
-//     "flex items-center gap-2 px-3 py-3 text-gray-700 hover:text-sky-500 transition-colors";
-//   const navItemActive =
-//     "flex items-center gap-2 px-3 py-3 text-sky-600 font-medium";
-
-//   return (
-//     <div className="min-h-screen flex bg-gray-100">
-//       {/* Sidebar */}
-//       <aside className="w-64 bg-white shadow-md px-4 py-6 flex flex-col justify-between">
-//         <div>
-//           <h2 className="text-xl font-bold mb-6">Library</h2>
-//           <ul className="space-y-2">
-//             <li>
-//               <Link to="/dashboard" className={navItem}>
-//                 <CalendarDays size={18} /> Dashboard
-//               </Link>
-//             </li>
-//             <li>
-//               <Link to="/manage-books" className={navItemActive}>
-//                 <BookOpen size={18} /> Manage Books
-//               </Link>
-//             </li>
-//             <li>
-//               <Link to="/manage-category" className={navItem}>
-//                 <Layers size={18} /> Manage Category
-//               </Link>
-//             </li>
-//             <li>
-//               <Link to="/upload" className={navItem}>
-//                 <Upload size={18} /> Upload Books
-//               </Link>
-//             </li>
-//             <li>
-//               <Link to="/fill-up-form" className={navItem}>
-//                 <BookOpen size={18} /> Fill Up Form
-//               </Link>
-//             </li>
-//             <li>
-//               <Link to="/members" className={navItem}>
-//                 <Users size={18} /> Member
-//               </Link>
-//             </li>
-//             <li>
-//               <Link to="/borrowed" className={navItem}>
-//                 <BookOpen size={18} /> Check-out Books
-//               </Link>
-//             </li>
-//             <li>
-//               <Link to="/help" className={navItem}>
-//                 <HelpCircle size={18} /> Help
-//               </Link>
-//             </li>
-//           </ul>
-//         </div>
-//         <div>
-//           <Link
-//             to="/logout"
-//             className="flex items-center gap-2 px-3 py-3 text-red-600 font-medium hover:underline underline-offset-4"
-//           >
-//             <LogOut size={18} /> Logout
-//           </Link>
-//         </div>
-//       </aside>
-
-//       {/* Main */}
-//       <main className="flex-1 p-6 space-y-6">
-//         <h1 className="text-xl md:text-2xl font-bold text-gray-800">Manage Books</h1>
-
-//         {/* Card with ash border (table stays inside) */}
-//         <section className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-//           <div className="flex items-center justify-between px-4 py-3 border-b">
-//             <span className="text-sm font-medium text-gray-700">Books List</span>
-//             <button
-//               type="button"
-//               className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
-//             >
-//               <Plus size={16} /> Add Book
-//             </button>
-//           </div>
-
-//           <div className="px-4 pb-4">
-//             {/* No horizontal scroll needed anymore; but keep safety wrapper */}
-//             <div className="overflow-x-auto">
-//               <table className="w-full text-sm border-collapse">
-//                 <thead className="bg-gray-50">
-//                   <tr className="text-left border-b">
-//                     <th className="py-3 px-4">Book</th>
-//                     {/* Removed: ISBN */}
-//                     <th className="py-3 px-4">Author</th>
-//                     <th className="py-3 px-4">Category</th>
-//                     <th className="py-3 px-4 whitespace-nowrap">No of copy</th>
-//                     {/* Removed: Status */}
-//                     {/* Removed: Updated On */}
-//                     <th className="py-3 px-4">Action</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {tableBooks.map((b, i) => (
-//                     <tr
-//                       // Composite key prevents duplicate-id warnings
-//                       key={`${(b.title || "").toLowerCase()}__${(b.author || "")
-//                         .toLowerCase()}__${i}`}
-//                       className={`border-b last:border-0 ${
-//                         i % 2 ? "bg-white" : "bg-gray-50"
-//                       }`}
-//                     >
-//                       <td className="py-3 px-4">
-//                         <div className="flex items-center gap-3">
-//                           <img
-//                             src={b.cover || PLACEHOLDER_IMG}
-//                             alt={b.title}
-//                             className="h-10 w-10 rounded object-cover bg-gray-100 flex-shrink-0"
-//                           />
-//                           <p className="font-semibold text-gray-800 truncate">
-//                             {b.title}
-//                           </p>
-//                         </div>
-//                       </td>
-
-//                       {/* Removed: ISBN cell */}
-//                       <td className="py-3 px-4 text-gray-700">{b.author}</td>
-//                       <td className="py-3 px-4 text-gray-700">{b.category}</td>
-//                       <td className="py-3 px-4 text-gray-700">{b.copies ?? "—"}</td>
-
-//                       {/* Removed: Status pill */}
-//                       {/* Removed: Updated On date */}
-
-//                       <td className="py-3 px-4">
-//                         <div className="flex items-center gap-2">
-//                           <button
-//                             type="button"
-//                             className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
-//                           >
-//                             <Pencil size={14} /> Edit
-//                           </button>
-//                           <button
-//                             type="button"
-//                             className="inline-flex items-center gap-1 rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-300"
-//                           >
-//                             <Trash2 size={14} /> Delete
-//                           </button>
-//                         </div>
-//                       </td>
-//                     </tr>
-//                   ))}
-
-//                   {tableBooks.length === 0 && (
-//                     <tr>
-//                       <td colSpan={6} className="py-6 px-4 text-center text-gray-500">
-//                         No books found in your data sources.
-//                       </td>
-//                     </tr>
-//                   )}
-//                 </tbody>
-//               </table>
-//             </div>
-
-//             {/* Helper stays inside the card */}
-//             <div className="pt-3 text-xs text-gray-500 md:hidden">
-//               Tip: swipe horizontally to see all columns.
-//             </div>
-//           </div>
-//         </section>
-//       </main>
-//     </div>
-//   );
-// }
