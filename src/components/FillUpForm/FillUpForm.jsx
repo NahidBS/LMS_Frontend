@@ -543,20 +543,34 @@
 
 // FillUpForm.jsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { CalendarDays, Upload, Users, BookOpen, HelpCircle, LogOut } from "lucide-react";
 
 export default function FillUpForm() {
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [formData, setFormData] = useState({});
   const navigate = useNavigate();
+  const location = useLocation();
 
-  useEffect(() => {
-    const books = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
-    // Show ONLY the most recently added book in the form
-    const lastOnly = books.length ? [books[books.length - 1]] : [];
-    setBorrowedBooks(lastOnly);
-  }, []);
+  // useEffect(() => {
+  //   const books = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+  //   // Show ONLY the most recently added book in the form
+  //   const lastOnly = books.length ? [books[books.length - 1]] : [];
+  //   setBorrowedBooks(lastOnly);
+  // }, []);
+   useEffect(() => {
+    // Get book from navigation state first
+    const bookFromState = location.state?.book;
+    
+    // Fallback to localStorage if no state
+    const booksFromStorage = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+    
+    if (bookFromState) {
+      setBorrowedBooks([bookFromState]);
+    } else if (booksFromStorage.length) {
+      setBorrowedBooks([booksFromStorage[booksFromStorage.length - 1]]);
+    }
+  }, [location.state]);
 
   // Helper: compute whole-day difference from TODAY (local) to the selected return date.
   const calcBorrowDays = (returnDateStr) => {

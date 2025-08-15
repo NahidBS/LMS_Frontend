@@ -144,47 +144,80 @@ export default function BookDetails() {
     }
   };
 
+  // const handleBorrow = async () => {
+  //   if (!isAvailable) {
+  //     alert("This book is currently not available for borrowing");
+  //     return;
+  //   }
+
+  //   if (bookData.availableCopies <= 0) {
+  //     alert("No available copies left");
+  //     return;
+  //   }
+
+  //   try {
+  //     // Update availability (reduce by 1)
+  //     await updateAvailability(bookData.availableCopies - 1);
+
+  //     // Add to local storage
+  //     const stored = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+  //     const alreadyExists = stored.find((b) => b.id === bookData.id);
+
+  //     if (!alreadyExists) {
+  //       stored.push({ ...bookData, quantity: 1 });
+  //       localStorage.setItem("borrowedBooks", JSON.stringify(stored));
+  //     }
+
+  //     // navigate(`/fill-up-form/${bookData.id}`);
+  //     navigate(`/fill-up-form/${bookData.id}`, {
+  //     state: {
+  //       bookingData: bookingResponse.data,
+  //       borrowData: borrowResponse.data
+  //     }
+  //   });
+  //   } catch (error) {
+  //     console.error("Error processing borrow:", error);
+  //     alert("Failed to process borrow request");
+  //   }
+  // };
+
   const handleBorrow = async () => {
-    if (!isAvailable) {
-      alert("This book is currently not available for borrowing");
-      return;
+  if (!isAvailable) {
+    alert("This book is currently not available for borrowing");
+    return;
+  }
+
+  if (bookData.availableCopies <= 0) {
+    alert("No available copies left");
+    return;
+  }
+
+  try {
+    // Update availability (reduce by 1)
+    await updateAvailability(bookData.availableCopies - 1);
+
+    // Add to local storage
+    const stored = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+    const alreadyExists = stored.find((b) => b.id === bookData.id);
+
+    if (!alreadyExists) {
+      stored.push({ ...bookData, quantity: 1 });
+      localStorage.setItem("borrowedBooks", JSON.stringify(stored));
     }
 
-    if (bookData.availableCopies <= 0) {
-      alert("No available copies left");
-      return;
-    }
-
-    try {
-      // Update availability (reduce by 1)
-      await updateAvailability(bookData.availableCopies - 1);
-
-      // Add to local storage
-      const stored = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
-      const alreadyExists = stored.find((b) => b.id === bookData.id);
-
-      if (!alreadyExists) {
-        stored.push({ ...bookData, quantity: 1 });
-        localStorage.setItem("borrowedBooks", JSON.stringify(stored));
-      }
-
-      // navigate(`/fill-up-form/${bookData.id}`);
-      navigate(`/fill-up-form`, {
-        // state: {
-        //   bookingData: bookingResponse.data,
-        //   borrowData: borrowResponse.data
-        // }
-        state: { 
+    // Navigate to fill-up form with book data
+    navigate('/fill-up-form', { 
+      state: { 
         book: bookData,
         // You can add any other data you want to pass
         returnDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // Default 14 days from now
       }
-      });
-    } catch (error) {
-      console.error("Error processing borrow:", error);
-      alert("Failed to process borrow request");
-    }
-  };
+    });
+  } catch (error) {
+    console.error("Error processing borrow:", error);
+    alert("Failed to process borrow request");
+  }
+};
 
   useEffect(() => {
     console.log("Fetching book data for id:", id);
