@@ -446,9 +446,9 @@ const Newsletter = () => {
       <div style={styles.newsletterContainer}>
         <h2 style={styles.newsletterTitle}>Subscribe to Our Newsletter</h2>
         <p style={styles.newsletterText}>
-          Sed eu feugiat amet, libero ipsum enim pharetra hac dolor sit amet,
+         Connect with Top 1% Bangladesh Talent
           <br />
-          consectetur.Elit adipiscing enim pharetra hac.
+          Scale Your Development Team in Just 4 Weeks
         </p>
         <div style={styles.newsletterInputContainer}>
           <FiMail style={styles.mailIcon} />

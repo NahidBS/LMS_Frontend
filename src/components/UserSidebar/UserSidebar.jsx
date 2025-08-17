@@ -46,25 +46,25 @@ export default function UserSidebar({ active = "dashboard" }) {
             </Link>
           </li>
           <li>
-            <Link to="/upload" className={isUpload ? on : off}>
+            <Link to="/donation-request" className={isUpload ? on : off}>
               <HandHeart size={18} /> Donation Request
             </Link>
           </li>
-          <li>
+          {/* <li>
             <Link to="/loans" className={isLoans ? on : off}>
               <Clock size={18} /> My Loans
             </Link>
-          </li>
+          </li> */}
           <li>
             <Link to="/history" className={isHistory ? on : off}>
               <CheckCircle size={18} /> History
             </Link>
           </li>
-          <li>
+          {/* <li>
             <Link to="/settings" className={isSettings ? on : off}>
               <Settings size={18} /> Settings
             </Link>
-          </li>
+          </li> */}
         </ul>
       </div>
       <div>
