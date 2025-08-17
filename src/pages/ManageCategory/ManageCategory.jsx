@@ -86,7 +86,7 @@ export default function ManageCategory() {
     
     try {
       const response = await api.put(
-        `/api/category/edit/${editingCategory.id}`,
+        `category/edit/${editingCategory.id}`,
         editFormData
       );
       

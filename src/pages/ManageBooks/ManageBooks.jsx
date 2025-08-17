@@ -1,5 +1,5 @@
 // src/pages/ManageBooks/ManageBooks.jsx
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import axios from 'axios';
 import {
   Plus,
@@ -17,33 +17,23 @@ import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
 const API_BASE_URL = 'http://localhost:8080/api';
 const PLACEHOLDER_IMG = "https://dummyimage.com/80x80/e5e7eb/9ca3af&text=📘";
 
-function toYMD(dateStr) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
-
 function normalizeBook(book) {
   return {
     id: book.id,
-    title: book.name || "—",
+    name: book.name || "—",
     author: book.author || "—",
-    category: book.categoryName || "—",
-    copies: book.totalCopies || "—",
-    availableCopies: book.availableCopies || "—",
-    updatedOn: book.createdAt || book.updatedAt || "",
-    cover: book.coverImageUrl || PLACEHOLDER_IMG,
-    pdf: book.pdfUrl || "",
-    audio: book.audioUrl || "",
-    description: book.shortDetails || "",
+    categoryName: book.category?.name || "—",
+    categoryId: book.category?.id || null,
+    totalCopies: book.total_copies || 0,
+    availableCopies: book.available_copies || 0,
+    updatedAt: book.updated_at || "",
+    coverImageUrl: book.book_cover_url || PLACEHOLDER_IMG,
+    pdfUrl: book.pdf_file_url || "",
+    audioUrl: book.audio_file_url || "",
+    shortDetails: book.short_details || "",
     isbn: book.isbn || "",
-    publicationYear: book.publicationYear || "",
+    publicationYear: book.publication_year || "",
     format: book.format || "",
-    categoryId: book.categoryId || null,
   };
 }
 
@@ -125,24 +115,24 @@ export default function ManageBooks() {
   };
   const [form, setForm] = useState(emptyForm);
 
-  const rowToForm = (row) => ({
-    name: row.title || "",
-    author: row.author || "",
-    categoryId: row.categoryId || "",
-    shortDetails: row.description || "",
-    totalCopies: row.copies || "",
-    availableCopies: row.availableCopies || "",
-    isbn: row.isbn || "",
-    publicationYear: row.publicationYear || "",
-    format: row.format || "",
+  const rowToForm = (book) => ({
+    name: book.name || "",
+    author: book.author || "",
+    categoryId: book.categoryId || "",
+    shortDetails: book.shortDetails || "",
+    totalCopies: book.totalCopies?.toString() || "",
+    availableCopies: book.availableCopies?.toString() || "",
+    isbn: book.isbn || "",
+    publicationYear: book.publicationYear?.toString() || "",
+    format: book.format || "",
     coverFile: null,
-    coverUrl: row.cover || "",
+    coverUrl: book.coverImageUrl || "",
     imageLoading: false,
     pdfFile: null,
-    pdfUrl: row.pdf || "",
+    pdfUrl: book.pdfUrl || "",
     pdfLoading: false,
     audioFile: null,
-    audioUrl: row.audio || "",
+    audioUrl: book.audioUrl || "",
     audioLoading: false,
   });
 
@@ -180,7 +170,7 @@ export default function ManageBooks() {
           coverUrl: url,
           imageLoading: false,
         }));
-      }, 1000);
+      }, 500);
     } else if (kind === "pdf") {
       setForm((f) => ({ ...f, pdfLoading: true }));
       setTimeout(() => {
@@ -190,7 +180,7 @@ export default function ManageBooks() {
           pdfUrl: url,
           pdfLoading: false,
         }));
-      }, 1000);
+      }, 500);
     } else if (kind === "audio") {
       setForm((f) => ({ ...f, audioLoading: true }));
       setTimeout(() => {
@@ -200,7 +190,7 @@ export default function ManageBooks() {
           audioUrl: url,
           audioLoading: false,
         }));
-      }, 1000);
+      }, 500);
     }
   };
 
@@ -215,39 +205,35 @@ export default function ManageBooks() {
       const bookData = {
         name: form.name,
         author: form.author,
-        categoryId: form.categoryId ? Number(form.categoryId) : null,
-        shortDetails: form.shortDetails,
-        totalCopies: form.totalCopies ? parseInt(form.totalCopies) : 1,
-        availableCopies: form.availableCopies ? parseInt(form.availableCopies) : form.totalCopies ? parseInt(form.totalCopies) : 1,
+        category_id: form.categoryId ? Number(form.categoryId) : null,
+        short_details: form.shortDetails,
+        total_copies: parseInt(form.totalCopies) || 0,
+        available_copies: parseInt(form.availableCopies) || parseInt(form.totalCopies) || 0,
         isbn: form.isbn,
-        publicationYear: form.publicationYear ? parseInt(form.publicationYear) : null,
+        publication_year: form.publicationYear ? parseInt(form.publicationYear) : null,
         format: form.format,
       };
 
-      if (form.coverFile || form.pdfFile || form.audioFile) {
-        const formData = new FormData();
-        formData.append('bookData', JSON.stringify(bookData));
-        if (form.coverFile) formData.append('bookCover', form.coverFile);
-        if (form.pdfFile) formData.append('pdfFile', form.pdfFile);
-        if (form.audioFile) formData.append('audioFile', form.audioFile);
+      if (mode === "edit" && editingId) {
+        if (form.coverFile || form.pdfFile || form.audioFile) {
+          const formData = new FormData();
+          formData.append('bookData', JSON.stringify(bookData));
+          if (form.coverFile) formData.append('bookCover', form.coverFile);
+          if (form.pdfFile) formData.append('pdfFile', form.pdfFile);
+          if (form.audioFile) formData.append('audioFile', form.audioFile);
 
-        if (mode === "edit" && editingId) {
-          await axios.put(`${API_BASE_URL}/book/edit/${editingId}`, bookData);
-          await axios.post(`${API_BASE_URL}/book/create/file`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
-          });
-        } else {
-          await axios.post(`${API_BASE_URL}/book/create/file`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
-          });
+          await axios.post(`${API_BASE_URL}/book/create/file`, formData);
         }
+        await axios.put(`${API_BASE_URL}/book/edit/${editingId}`, bookData);
       } else {
-        if (mode === "edit" && editingId) {
-          await axios.put(`${API_BASE_URL}/book/edit/${editingId}`, bookData);
+        if (form.coverFile || form.pdfFile || form.audioFile) {
+          const formData = new FormData();
+          formData.append('bookData', JSON.stringify(bookData));
+          if (form.coverFile) formData.append('bookCover', form.coverFile);
+          if (form.pdfFile) formData.append('pdfFile', form.pdfFile);
+          if (form.audioFile) formData.append('audioFile', form.audioFile);
+
+          await axios.post(`${API_BASE_URL}/book/create/file`, formData);
         } else {
           await axios.post(`${API_BASE_URL}/book/create`, bookData);
         }
@@ -258,7 +244,7 @@ export default function ManageBooks() {
       setSavedToast(true);
       setTimeout(() => setSavedToast(false), 2000);
     } catch (err) {
-      alert(`Error saving book: ${err.response?.data?.message || err.message}`);
+      alert(`Error: ${err.response?.data?.message || err.message}`);
     } finally {
       setSaving(false);
     }
@@ -273,7 +259,7 @@ export default function ManageBooks() {
     if (!pendingDeleteId) return;
     try {
       await axios.delete(`${API_BASE_URL}/book/delete/${pendingDeleteId}`);
-      setBooks(books.filter(book => book.id !== pendingDeleteId));
+      await fetchBooks();
       setConfirmOpen(false);
     } catch (err) {
       alert(`Error deleting book: ${err.response?.data?.message || err.message}`);
@@ -310,8 +296,7 @@ export default function ManageBooks() {
 
   return (
     <div className="min-h-screen flex bg-gray-100">
-      <Sidebar activePage="manage-books" />
-
+       <Sidebar activePage="manage-books" />
       <main className="flex-1 p-6 space-y-6">
         <h1 className="text-xl md:text-2xl font-bold text-gray-800">Manage Books</h1>
 
@@ -356,12 +341,15 @@ export default function ManageBooks() {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <img
-                            src={book.cover}
-                            alt={book.title}
+                            src={book.coverImageUrl}
+                            alt={book.name}
                             className="h-10 w-10 rounded object-cover bg-gray-100 flex-shrink-0"
+                            onError={(e) => {
+                              e.target.src = PLACEHOLDER_IMG;
+                            }}
                           />
                           <div>
-                            <p className="font-semibold text-gray-800">{book.title}</p>
+                            <p className="font-semibold text-gray-800">{book.name}</p>
                             {book.isbn && (
                               <p className="text-xs text-gray-500">ISBN: {book.isbn}</p>
                             )}
@@ -369,8 +357,8 @@ export default function ManageBooks() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-gray-700">{book.author}</td>
-                      <td className="py-3 px-4 text-gray-700">{book.category}</td>
-                      <td className="py-3 px-4 text-gray-700">{book.copies}</td>
+                      <td className="py-3 px-4 text-gray-700">{book.categoryName}</td>
+                      <td className="py-3 px-4 text-gray-700">{book.totalCopies}</td>
                       <td className="py-3 px-4 text-gray-700">{book.availableCopies}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
@@ -434,7 +422,7 @@ export default function ManageBooks() {
 
         {/* Add/Edit Modal */}
         {open && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
               <div className="fixed inset-0 transition-opacity" onClick={() => setOpen(false)}>
                 <div className="absolute inset-0 bg-black/50"></div>
@@ -680,7 +668,7 @@ export default function ManageBooks() {
 
         {/* Delete Confirmation Modal */}
         {confirmOpen && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
               <div className="fixed inset-0 transition-opacity" onClick={() => setConfirmOpen(false)}>
                 <div className="absolute inset-0 bg-black/50"></div>
