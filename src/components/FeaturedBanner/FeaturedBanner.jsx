@@ -108,7 +108,7 @@ const FeaturedBanner = () => {
     const fetchFeaturedBooks = async () => {
       try {
         // const res = await api.get("/featured-books/list");
-        const res = await api.get("/book/list");
+        const res = await api.get("/popular-books");
         const rawBooks = res.data; // array of {id, book: {...}}
         const normalizedBooks = rawBooks.map((item) => ({
           id: item.book.id,
@@ -185,7 +185,7 @@ const FeaturedBanner = () => {
 
           {/* THIS IS THE FIX: Link now uses the correct book ID */}
           <Link
-            to={`/book/${currentBook.id}`}
+            to={`/book/retrieve/${currentBook.id}`}
             className="inline-block px-5 py-2 border border-sky-600 text-sky-600 rounded hover:bg-sky-600 hover:text-white transition-all text-sm"
           >
             VIEW DETAILS →
