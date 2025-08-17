@@ -43,7 +43,7 @@ export default function BookDetails() {
       category: b.category?.name || b.categoryName || "General",
       summary: b.about || b.short_details || "",
       wants: 0,
-      image: b.book_cover_url || b.coverImage || "",
+      // image: b.book_cover_url || b.coverImage || "",
       pdfLink: b.pdf_file_url || b.pdfLink || "#",
       audioLink: b.audio_file_url || "",
       status: b.is_available ? "Available" : "Out Of Stock",
