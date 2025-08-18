@@ -423,12 +423,11 @@ export default function ManageBooks() {
         {/* Add/Edit Modal */}
         {open && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" onClick={() => setOpen(false)}>
-                <div className="absolute inset-0 bg-black/50"></div>
-              </div>
+            {/* Background overlay */}
+              <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)}/>
               
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+               {/* Modal */}
+              <div className="relative z-10 bg-white rounded-lg shadow-xl sm:max-w-4xl sm:w-full p-6">
                 <div className="bg-white px-6 py-4">
                   <div className="flex items-center gap-2">
                     {mode === "edit" ? (
@@ -662,34 +661,34 @@ export default function ManageBooks() {
                   </button>
                 </div>
               </div>
-            </div>
           </div>
         )}
 
         {/* Delete Confirmation Modal */}
         {confirmOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" onClick={() => setConfirmOpen(false)}>
-                <div className="absolute inset-0 bg-black/50"></div>
-              </div>
+            {/* <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"> */}
+              <div className="fixed inset-0 bg-black/50" onClick={() => setConfirmOpen(false)}/>
+                {/* <div className="absolute inset-0 bg-black/50"></div> */}
+              {/* </div> */}
               
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
-                <div className="bg-white px-6 py-5">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="text-amber-500 mt-0.5" size={24} />
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        Confirm Deletion
+               {/* Modal */}
+              <div className="relative z-10 bg-white rounded-lg shadow-xl sm:max-w-lg sm:w-full p-6">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" size={24} />
+                  </div>  
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900">
+                        Confirm Delete
                       </h3>
                       <p className="mt-1 text-sm text-gray-600">
                         Are you sure you want to delete this book? This action cannot be undone.
                       </p>
                     </div>
-                  </div>
                 </div>
 
-                <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
+                <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse gap-2">
                   <button
                     type="button"
                     onClick={() => setConfirmOpen(false)}
@@ -706,7 +705,6 @@ export default function ManageBooks() {
                   </button>
                 </div>
               </div>
-            </div>
           </div>
         )}
 
