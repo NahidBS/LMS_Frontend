@@ -24,6 +24,7 @@ export default function NewBookCollections() {
           author: book.authors || book.author || "Unknown",
           coverImage: book.book_cover_url || book.image || "",
           rating: book.average_rating || book.rating || 0,
+          review_count: book.review_count || 0,
           status: book.available_copies > 0 ? "Available" : "Out Of Stock",
         }));
 
@@ -96,6 +97,10 @@ export default function NewBookCollections() {
               }`}
             />
           ))}
+           {/* Add this span to show review count */}
+          <span className="text-xs text-gray-500 ml-1">
+            ({book.review_count || 0})
+          </span>
         </div>
         <p
           className={`text-xs font-semibold mt-1 transition-colors ${
