@@ -29,6 +29,11 @@ export default function ManageCategory() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ✅ Add Category Modal
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState({ name: "", description: "" });
+  const [isAdding, setIsAdding] = useState(false);
+
   useEffect(() => {
     document.title = "Manage Category";
     fetchCategories();
@@ -59,7 +64,10 @@ export default function ManageCategory() {
         fetchCategories();
       } catch (err) {
         console.error("Error deleting category:", err);
-        alert("Failed to delete category. Please try again.");
+        // alert("Failed to delete category. Please try again.");
+        const msg =
+        err.response?.data?.message || "Failed to delete category. Please try again.";
+        alert(msg);
       }
     }
   };
@@ -106,6 +114,32 @@ export default function ManageCategory() {
     }
   };
 
+  // Handle form change + submit:
+  const handleAddFormChange = (e) => {
+    const { name, value } = e.target;
+    setNewCategory((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddSubmit = async (e) => {
+    e.preventDefault();
+    setIsAdding(true);
+    try {
+      const response = await api.post("/category/create", newCategory);
+      if (response.data) {
+        setCategories([...categories, response.data]); // append new
+        setIsAddModalOpen(false);
+        setNewCategory({ name: "", description: "" });
+        alert("Category created successfully!");
+      }
+    } catch (err) {
+      console.error("Error creating category:", err);
+      alert(err.response?.data?.message || "Failed to create category.");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen flex bg-gray-100">
       <Sidebar activePage="manage-category" />
@@ -115,12 +149,13 @@ export default function ManageCategory() {
           <h1 className="text-xl md:text-2xl font-bold text-gray-800">
             Manage Category
           </h1>
-          <Link
-            to="/admin/add-category"
+          <button
+            onClick={() => setIsAddModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
             <Plus size={16} /> Add Category
-          </Link>
+          </button>
+
         </div>
 
         {loading && (
@@ -146,8 +181,8 @@ export default function ManageCategory() {
                     <th className="py-3 px-4 min-w-[220px]">Category</th>
                     <th className="py-3 px-4 min-w-[220px]">Description</th>
                     <th className="py-3 px-4 min-w-[120px]">Books</th>
-                    <th className="py-3 px-4 min-w-[140px]">Created At</th>
-                    <th className="py-3 px-4 min-w-[140px]">Status</th>
+                    {/* <th className="py-3 px-4 min-w-[140px]">Created At</th>
+                    <th className="py-3 px-4 min-w-[140px]">Status</th> */}
                     <th className="py-3 px-4 min-w-[160px]">Action</th>
                   </tr>
                 </thead>
@@ -168,12 +203,12 @@ export default function ManageCategory() {
                         <td className="py-3 px-4 text-gray-700">
                           {category.book_count || category.bookCount || 0}
                         </td>
-                        <td className="py-3 px-4 text-gray-700">
+                        {/* <td className="py-3 px-4 text-gray-700">
                           {new Date(category.created_at || category.createdAt).toLocaleDateString()}
                         </td>
                         <td className="py-3 px-4">
                           <StatusPill status="Enable" />
-                        </td>
+                        </td> */}
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <button
@@ -208,6 +243,74 @@ export default function ManageCategory() {
             </div>
           </div>
         )}
+
+        {/* Add Category Modal */}
+        {isAddModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between border-b p-4">
+                <h2 className="text-lg font-semibold">Add Category</h2>
+                <button
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddSubmit} className="p-4">
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="add-name" className="block text-sm font-medium text-gray-700 mb-1">
+                      Category Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="add-name"
+                      name="name"
+                      value={newCategory.name}
+                      onChange={handleAddFormChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="add-description" className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      id="add-description"
+                      name="description"
+                      value={newCategory.description}
+                      onChange={handleAddFormChange}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isAdding}
+                    className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50"
+                  >
+                    {isAdding ? "Adding..." : "Add Category"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
 
         {/* Edit Category Modal */}
         {editingCategory && (
