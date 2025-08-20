@@ -35,7 +35,7 @@ const isToday = (dt) => {
 
 const normalizeBook = (apiBook) => ({
   id: apiBook.id,
-  category: apiBook.category?.category_name || "Unknown",
+  category: apiBook.category?.name || "Unknown",
   title: apiBook.name || "Unknown",
   author: apiBook.author || "Unknown",
   shortDescription: apiBook.short_description || "Unknown",

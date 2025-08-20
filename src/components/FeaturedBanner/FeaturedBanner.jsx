@@ -107,17 +107,16 @@ const FeaturedBanner = () => {
   useEffect(() => {
     const fetchFeaturedBooks = async () => {
       try {
-        // const res = await api.get("/featured-books/list");
-        const res = await api.get("/popular-books");
-        const rawBooks = res.data; // array of {id, book: {...}}
+        const res = await api.get("/book/list");
+        const rawBooks = res.data.content; // array of {id, book: {...}}
         const normalizedBooks = rawBooks.map((item) => ({
-          id: item.book.id,
-          title: item.book.name || "Untitled",
-          author: item.book.author || "Unknown",
-          image: item.book.book_cover_url || "",
-          rating: item.book.average_rating || 0,
-          availability: item.book.available_copies > 0 ? "Available" : "Out Of Stock",
-          description: item.book.short_description || "",
+          id: item.id,
+          title: item.name || "Untitled",
+          author: item.author || "Unknown",
+          image: item.book_cover_url || "",
+          rating: item.average_rating || 0,
+          availability: item.available_copies > 0 ? "Available" : "Out Of Stock",
+          description: item.short_details || "",
         }));
         setFeatured(normalizedBooks);
       } catch (err) {
@@ -185,7 +184,7 @@ const FeaturedBanner = () => {
 
           {/* THIS IS THE FIX: Link now uses the correct book ID */}
           <Link
-            to={`/book/retrieve/${currentBook.id}`}
+            to={`/book/${currentBook.id}`}
             className="inline-block px-5 py-2 border border-sky-600 text-sky-600 rounded hover:bg-sky-600 hover:text-white transition-all text-sm"
           >
             VIEW DETAILS →
