@@ -26,7 +26,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
-        const response = await api.get("/admin-dashboard/statistics");
+        const response = await api.get("/borrow/stats");
         setStatistics(response.data);
       } catch (error) {
         console.error("Error fetching statistics:", error);
@@ -40,8 +40,8 @@ export default function Dashboard() {
     return {
       id: item.id,
       user: item.user?.name ?? "—",
-      borrowed: item.borrowDate ?? "—",
-      returned: item.returnDate ?? "—",
+      borrowed: item.borrow_date ?? "—",
+      returned: item.due_date ?? "—",
       book: item.book?.name ?? "",
       cover: item.book?.bookCoverUrl ?? PLACEHOLDER_IMG,
     };
@@ -189,9 +189,9 @@ export default function Dashboard() {
         {/* Top stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Borrowed Books", value: statistics?.total_borrows },
-            { label: "Returned Books", value: statistics?.total_returns },
-            { label: "Overdue Books", value: statistics?.overdue_borrows },
+            { label: "Borrowed Books", value: statistics?.borrowedBooks },
+            { label: "Returned Books", value: statistics?.returnedBooks },
+            { label: "Overdue Books", value: statistics?.overdueBooks },
             { label: "Total Books", value: statistics?.current_total_books },
             { label: "New Members", value: statistics?.new_members },
             { label: "Pending", value: statistics?.pending_borrows },

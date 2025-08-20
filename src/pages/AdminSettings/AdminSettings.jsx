@@ -1,164 +1,108 @@
 // src/pages/admin/AdminSettings.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Save,
   CheckCircle2,
   AlertTriangle,
-  Upload,
-  BookOpen,
-  CalendarDays,
-  Users as UsersIcon,
-  ShieldCheck,
   Settings as SettingsIcon,
+  CalendarDays,
+  BookOpen,
 } from "lucide-react";
 import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
 
-// simple switch component
-function Switch({ checked, onChange, label }) {
+const LS_KEY = "adminSettings_limits_v1";
+
+// Pretty row used for each setting
+function SettingRow({ icon, title, help, value, onChange, id }) {
   return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-sm text-gray-700">{label}</span>
-      <span className="relative inline-flex items-center">
-        <input
-          type="checkbox"
-          className="sr-only peer"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <span
-          className="
-            h-5 w-9 rounded-full bg-gray-300 peer-checked:bg-sky-600 transition-colors
-            relative after:content-[''] after:absolute after:top-0.5 after:left-0.5
-            after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform
-            peer-checked:after:translate-x-4
-          "
-        />
-      </span>
-    </label>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200">
+      <div className="flex items-start sm:items-center gap-3">
+        <span className="shrink-0 mt-0.5 sm:mt-0 text-sky-600">{icon}</span>
+        <div>
+          <p className="font-medium text-gray-900">{title}</p>
+          <p className="text-sm text-gray-600">{help}</p>
+        </div>
+      </div>
+
+      <div className="sm:min-w-[220px]">
+        <div className="relative">
+          <input
+            id={id}
+            type="number"
+            min={0}
+            step={1}
+            value={value}
+            onChange={(e) => onChange(Math.max(0, Number(e.target.value || 0)))}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-right focus:outline-none focus:ring-2 focus:ring-sky-400"
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">
+            days
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 
-const LS_KEY = "adminSettings";
-
-const defaultSettings = {
-  features: {
-    bookings: true,
-    bookOnlyWhenAvailable: true,
-    autoApproveBooking: false,
-
-    returnsEnabled: true,
-    autoAcceptReturns: true,
-    requireReturnPhoto: false,
-
-    uploadsEnabled: true, // donation requests
-    requireUploadApproval: true,
-  },
-
-  bookingRules: {
-    maxDays: 14,
-    leadDays: 0,
-  },
-
-  returnRules: {
-    graceDays: 2,
-    finePerDay: 0, // 0 = no fine
-    eligibleCategories: ["Programming", "Web Development", "Business"],
-  },
-
-  uploadRules: {
-    allowedTypes: ["jpg", "jpeg", "png", "pdf"],
-    maxSizeMB: 20,
-  },
-
-  permissions: {
-    client: { canBook: true, canReturn: true, canUpload: true },
-    employee: { canBook: true, canReturn: true, canUpload: true },
-  },
-
-  meta: {
-    lastSavedBy: "Happy",
-    lastSavedAt: null,
-    audit: [
-      { id: 1, who: "Happy", what: "Initialized settings", when: new Date().toISOString() },
-    ],
-  },
-};
-
 export default function AdminSettings() {
-  // load / init
-  const [settings, setSettings] = useState(() => {
+  useEffect(() => {
+    document.title = "Admin Settings";
+  }, []);
+
+  // Default values (you can change these if your backend wants other initial numbers)
+  const defaults = {
+    "borrow-day-limit": 14,
+    "borrow-extend-limit": 7,
+    "borrow-limit": 3,
+    "booking-duration": 2,
+    "booking-days-limit": 30,
+  };
+
+  // Load from localStorage
+  const [limits, setLimits] = useState(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      return raw ? JSON.parse(raw) : defaultSettings;
+      const saved = raw ? JSON.parse(raw) : {};
+      return { ...defaults, ...saved };
     } catch {
-      return defaultSettings;
+      return { ...defaults };
     }
   });
 
-  // Save modal + toast
+  // Modal + Toast
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: "" });
 
-  const showToast = (msg) => {
-    setToast({ show: true, msg });
-    setTimeout(() => setToast({ show: false, msg: "" }), 1800);
-  };
+  const patch = (key, val) =>
+    setLimits((prev) => ({
+      ...prev,
+      [key]: val,
+    }));
 
   const onSave = () => setConfirmOpen(true);
 
   const doSave = () => {
-    const now = new Date().toISOString();
-    const next = {
-      ...settings,
-      meta: {
-        ...settings.meta,
-        lastSavedAt: now,
-        audit: [
-          { id: Date.now(), who: "Happy", what: "Saved settings", when: now },
-          ...(settings.meta?.audit || []),
-        ].slice(0, 8),
-      },
+    // Persist locally
+    localStorage.setItem(LS_KEY, JSON.stringify(limits));
+
+    // Prepare API payload using the EXACT hyphenated keys your backend expects
+    const payload = {
+      "borrow-day-limit": limits["borrow-day-limit"],
+      "borrow-extend-limit": limits["borrow-extend-limit"],
+      "borrow-limit": limits["borrow-limit"],
+      "booking-duration": limits["booking-duration"],
+      "booking-days-limit": limits["booking-days-limit"],
     };
-    setSettings(next);
-    localStorage.setItem(LS_KEY, JSON.stringify(next));
+
+    // Hook this up to your API call when ready:
+    // await fetch('/api/admin/settings/limits', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+
     setConfirmOpen(false);
-    showToast("Settings have been saved and applied.");
+    setToast({ show: true, msg: "Settings saved successfully." });
+    setTimeout(() => setToast({ show: false, msg: "" }), 1800);
   };
 
-  // derived
-  const allowedTypesText = useMemo(
-    () => (settings.uploadRules.allowedTypes || []).join(", "),
-    [settings.uploadRules.allowedTypes]
-  );
-
-  // helpers to update nested state
-  const patch = (path, value) => {
-    setSettings((prev) => {
-      const next = structuredClone(prev);
-      // tiny path setter (path like "features.bookings")
-      const parts = path.split(".");
-      let obj = next;
-      for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
-      obj[parts[parts.length - 1]] = value;
-      return next;
-    });
-  };
-
-  const toggleType = (ext, checked) => {
-    const cur = new Set(settings.uploadRules.allowedTypes);
-    if (checked) cur.add(ext);
-    else cur.delete(ext);
-    patch("uploadRules.allowedTypes", Array.from(cur));
-  };
-
-  const toggleCategory = (name, checked) => {
-    const cur = new Set(settings.returnRules.eligibleCategories);
-    if (checked) cur.add(name);
-    else cur.delete(name);
-    patch("returnRules.eligibleCategories", Array.from(cur));
-  };
-
-  const perms = settings.permissions;
+  const resetDefaults = () => setLimits({ ...defaults });
 
   return (
     <div className="min-h-screen flex bg-gray-100">
@@ -171,314 +115,81 @@ export default function AdminSettings() {
             Admin Settings
           </h1>
 
-          <button
-            type="button"
-            onClick={onSave}
-            className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
-          >
-            <Save size={16} /> Save Changes
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={resetDefaults}
+              className="hidden sm:inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              <Save size={16} /> Save Changes
+            </button>
+          </div>
         </header>
 
-        {/* ======== Feature Toggles ======== */}
+        {/* Limits card */}
         <section className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
           <div className="px-4 md:px-6 py-4 border-b border-gray-200 flex items-center gap-2">
-            <ShieldCheck size={18} className="text-gray-700" />
-            <h2 className="font-semibold text-gray-800">Feature Toggles</h2>
+            <CalendarDays size={18} className="text-gray-700" />
+            <h2 className="font-semibold text-gray-800">Circulation & Booking Limits</h2>
           </div>
 
-          <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Bookings */}
-            <div className="rounded-lg border border-gray-200 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <CalendarDays size={18} className="text-sky-600" />
-                <p className="font-medium text-gray-800">Bookings</p>
-              </div>
-              <div className="space-y-3">
-                <Switch
-                  checked={settings.features.bookings}
-                  onChange={(v) => patch("features.bookings", v)}
-                  label="Enable bookings"
-                />
-                <Switch
-                  checked={settings.features.bookOnlyWhenAvailable}
-                  onChange={(v) => patch("features.bookOnlyWhenAvailable", v)}
-                  label="Allow booking only when available"
-                />
-                <Switch
-                  checked={settings.features.autoApproveBooking}
-                  onChange={(v) => patch("features.autoApproveBooking", v)}
-                  label="Auto-approve booking"
-                />
-              </div>
-            </div>
+          <div className="p-4 md:p-6 space-y-4">
+            <SettingRow
+              id="borrow-day-limit"
+              icon={<BookOpen size={18} />}
+              title="Borrow Day Limit"
+              help="Update borrow day limit"
+              value={limits["borrow-day-limit"]}
+              onChange={(v) => patch("borrow-day-limit", v)}
+            />
 
-            {/* Returns */}
-            <div className="rounded-lg border border-gray-200 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <BookOpen size={18} className="text-green-600" />
-                <p className="font-medium text-gray-800">Returns</p>
-              </div>
-              <div className="space-y-3">
-                <Switch
-                  checked={settings.features.returnsEnabled}
-                  onChange={(v) => patch("features.returnsEnabled", v)}
-                  label="Enable returns"
-                />
-                <Switch
-                  checked={settings.features.autoAcceptReturns}
-                  onChange={(v) => patch("features.autoAcceptReturns", v)}
-                  label="Auto-accept when scanned"
-                />
-                <Switch
-                  checked={settings.features.requireReturnPhoto}
-                  onChange={(v) => patch("features.requireReturnPhoto", v)}
-                  label="Require condition photo on return"
-                />
-              </div>
-            </div>
+            <SettingRow
+              id="borrow-extend-limit"
+              icon={<BookOpen size={18} />}
+              title="Borrow Extension Limit"
+              help="Update borrow extension limit"
+              value={limits["borrow-extend-limit"]}
+              onChange={(v) => patch("borrow-extend-limit", v)}
+            />
 
-            {/* Uploads / Donation Requests */}
-            <div className="rounded-lg border border-gray-200 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Upload size={18} className="text-violet-600" />
-                <p className="font-medium text-gray-800">Uploads / Donation Requests</p>
-              </div>
-              <div className="space-y-3">
-                <Switch
-                  checked={settings.features.uploadsEnabled}
-                  onChange={(v) => patch("features.uploadsEnabled", v)}
-                  label="Enable user uploads (donation requests)"
-                />
-                <Switch
-                  checked={settings.features.requireUploadApproval}
-                  onChange={(v) => patch("features.requireUploadApproval", v)}
-                  label="Require admin approval"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
+            <SettingRow
+              id="borrow-limit"
+              icon={<BookOpen size={18} />}
+              title="Max Borrow Limit"
+              help="Update max borrow limit (how many books a user can borrow at once)"
+              value={limits["borrow-limit"]}
+              onChange={(v) => patch("borrow-limit", v)}
+            />
 
-        {/* ======== Rules ======== */}
-        <section className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-          <div className="px-4 md:px-6 py-4 border-b border-gray-200 flex items-center gap-2">
-            <SettingsIcon size={18} className="text-gray-700" />
-            <h2 className="font-semibold text-gray-800">Rules</h2>
-          </div>
+            <SettingRow
+              id="booking-duration"
+              icon={<CalendarDays size={18} />}
+              title="Max Booking Duration"
+              help="Update max booking duration"
+              value={limits["booking-duration"]}
+              onChange={(v) => patch("booking-duration", v)}
+            />
 
-          <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Booking rules */}
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="font-medium text-gray-800 mb-3">Booking Rules</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Max reservation days</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={settings.bookingRules.maxDays}
-                    onChange={(e) => patch("bookingRules.maxDays", Number(e.target.value || 1))}
-                    className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Lead time (days)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={settings.bookingRules.leadDays}
-                    onChange={(e) => patch("bookingRules.leadDays", Number(e.target.value || 0))}
-                    className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Return rules */}
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="font-medium text-gray-800 mb-3">Return Rules</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Grace days</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={settings.returnRules.graceDays}
-                    onChange={(e) => patch("returnRules.graceDays", Number(e.target.value || 0))}
-                    className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Fine per day (optional)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={settings.returnRules.finePerDay}
-                    onChange={(e) => patch("returnRules.finePerDay", Number(e.target.value || 0))}
-                    className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  />
-                </div>
-                <div>
-                  <p className="block text-sm text-gray-700 mb-1">Eligible categories</p>
-                  <div className="flex flex-wrap gap-2">
-                    {["Programming", "Web Development", "Design", "Business", "Science"].map(
-                      (cat) => {
-                        const checked = settings.returnRules.eligibleCategories.includes(cat);
-                        return (
-                          <label
-                            key={cat}
-                            className={`px-3 py-1 rounded-full text-xs font-medium ring-1 cursor-pointer ${
-                              checked
-                                ? "bg-sky-50 text-sky-700 ring-sky-200"
-                                : "bg-white text-gray-700 ring-gray-200"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              checked={checked}
-                              onChange={(e) => toggleCategory(cat, e.target.checked)}
-                            />
-                            {cat}
-                          </label>
-                        );
-                      }
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Upload rules */}
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="font-medium text-gray-800 mb-3">Upload Rules</p>
-              <div className="space-y-3">
-                <div>
-                  <p className="block text-sm text-gray-700 mb-1">Allowed types</p>
-                  <div className="flex flex-wrap gap-2">
-                    {["jpg", "jpeg", "png", "pdf"].map((ext) => {
-                      const checked = settings.uploadRules.allowedTypes.includes(ext);
-                      return (
-                        <label
-                          key={ext}
-                          className={`px-3 py-1 rounded-full text-xs font-medium ring-1 cursor-pointer ${
-                            checked
-                              ? "bg-violet-50 text-violet-700 ring-violet-200"
-                              : "bg-white text-gray-700 ring-gray-200"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={checked}
-                            onChange={(e) => toggleType(ext, e.target.checked)}
-                          />
-                          {ext.toUpperCase()}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Selected: {allowedTypesText || "—"}</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Max size (MB)</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={settings.uploadRules.maxSizeMB}
-                    onChange={(e) => patch("uploadRules.maxSizeMB", Number(e.target.value || 1))}
-                    className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ======== Roles & Permissions ======== */}
-        <section className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-          <div className="px-4 md:px-6 py-4 border-b border-gray-200 flex items-center gap-2">
-            <UsersIcon size={18} className="text-gray-700" />
-            <h2 className="font-semibold text-gray-800">Roles & Permissions</h2>
-          </div>
-
-          <div className="p-4 md:p-6 overflow-x-auto">
-            <table className="min-w-[520px] w-full text-sm">
-              <thead>
-                <tr className="text-left">
-                  <th className="py-2 px-3">Role</th>
-                  <th className="py-2 px-3">Can Book</th>
-                  <th className="py-2 px-3">Can Return</th>
-                  <th className="py-2 px-3">Can Upload Donation</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {["client", "employee"].map((role) => (
-                  <tr key={role} className="even:bg-gray-50">
-                    <td className="py-3 px-3 font-medium capitalize">{role}</td>
-                    {["canBook", "canReturn", "canUpload"].map((perm) => (
-                      <td key={perm} className="py-3 px-3">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 accent-sky-600"
-                          checked={perms[role][perm]}
-                          onChange={(e) =>
-                            patch(`permissions.${role}.${perm}`, e.target.checked)
-                          }
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="text-xs text-gray-500 mt-3">
-              Tip: If a feature is disabled above, related permissions won’t have effect.
-            </p>
-          </div>
-        </section>
-
-        {/* ======== Audit ======== */}
-        <section className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-          <div className="px-4 md:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={18} className="text-gray-700" />
-              <h2 className="font-semibold text-gray-800">Audit</h2>
-            </div>
-            <div className="text-sm text-gray-600">
-              Last saved by <span className="font-medium">Happy</span>{" "}
-              {settings.meta.lastSavedAt
-                ? `on ${new Date(settings.meta.lastSavedAt).toLocaleString()}`
-                : "(not yet saved)"}
-            </div>
-          </div>
-
-          <div className="p-4 md:p-6">
-            <ul className="space-y-2">
-              {(settings.meta.audit || []).map((a) => (
-                <li key={a.id} className="flex items-center justify-between rounded border border-gray-200 p-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <CheckCircle2 className="text-green-600" size={18} />
-                    <span className="font-medium">{a.what}</span>
-                    <span className="text-gray-500">— {a.who}</span>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(a.when).toLocaleString()}
-                  </div>
-                </li>
-              ))}
-              {(settings.meta.audit || []).length === 0 && (
-                <li className="text-sm text-gray-500">No audit entries yet.</li>
-              )}
-            </ul>
+            <SettingRow
+              id="booking-days-limit"
+              icon={<CalendarDays size={18} />}
+              title="Booking Days Limit"
+              help="Update booking days limit"
+              value={limits["booking-days-limit"]}
+              onChange={(v) => patch("booking-days-limit", v)}
+            />
           </div>
         </section>
       </main>
 
-      {/* ===== Save confirmation modal ===== */}
+      {/* Save confirmation modal */}
       {confirmOpen && (
         <div
           className="fixed inset-0 z-50"
@@ -501,7 +212,7 @@ export default function AdminSettings() {
                       Apply these changes?
                     </h3>
                     <p className="mt-1 text-sm text-gray-600">
-                      Settings will apply immediately for all users (client & employee).
+                      Limits will update for all users immediately after saving.
                     </p>
                   </div>
                 </div>
@@ -528,7 +239,7 @@ export default function AdminSettings() {
         </div>
       )}
 
-      {/* ===== Toast ===== */}
+      {/* Success toast */}
       {toast.show && (
         <div className="fixed bottom-6 right-6 z-[60] pointer-events-none animate-[toastIn_.25s_ease-out]">
           <div className="pointer-events-auto flex items-start gap-3 rounded-xl bg-white shadow-lg ring-1 ring-black/5 px-4 py-3">

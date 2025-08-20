@@ -1,29 +1,14 @@
- // src/routes/DashRouter.jsx
-import { Navigate } from "react-router-dom";
+// import { Navigate } from "react-router-dom";
 
-export default function DashRouter() {
-  let user = null;
+// export default function DashRouter() {
+//   const user = JSON.parse(localStorage.getItem("user") || "null");
+//   const role = user?.role?.toLowerCase();
 
-  try {
-    user = JSON.parse(localStorage.getItem("user"));
-  } catch (error) {
-    console.error("Failed to parse user from localStorage:", error);
-  }
+//   if (!role) return <Navigate to="/" replace />;
 
-  if (!user || !user.role) {
-    // No user info, redirect to login/home
-    return <Navigate to="/" replace />;
-  }
-   const role = user.role.toLowerCase();
+//   // Directly navigate to proper dashboard path
+//   if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
+//   if (role === "user") return <Navigate to="/user/dashboard" replace />;
 
-  switch (role) {
-    case "admin":
-      return <Navigate to="/admin" replace />;
-    case "user":
-      return <Navigate to="/user" replace />;
-    default:
-      // Unknown role, redirect to home or error page
-      return <Navigate to="/" replace />;
-  }
-}
-
+//   return <Navigate to="/unauthorized" replace />;
+// }

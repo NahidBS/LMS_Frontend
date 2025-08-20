@@ -57,6 +57,10 @@ import AllGenres from "./pages/AllGenres/AllGenres";
 import ManageBooks from "./pages/ManageBooks/ManageBooks";
 import ManageCategory from "./pages/ManageCategory/ManageCategory";
 
+import UserSettings from './pages/UserSettings/UserSettings';
+import DonationRequest from './pages/DonationRequest/DonationRequest';
+import AdminSettings from './pages/AdminSettings/AdminSettings';
+
 function App() {
   return (
     <BrowserRouter>
@@ -75,6 +79,11 @@ function App() {
             <Route path="/all-genres" element={<AllGenres />} />
             <Route path="/manage-books" element={<ManageBooks />} />
             <Route path="/manage-category" element={<ManageCategory />} />
+
+
+            <Route path="/settings" element={<UserSettings/>} />
+            <Route path="/setting" element={<AdminSettings />} />
+            <Route path="/donation-request" element={<DonationRequest />} />
 
             {/* ---- QUICK ALIASES so /admin/* also works ---- */}
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
