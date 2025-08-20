@@ -1,4 +1,4 @@
-
+// Navbar.jsx
 import {
   Bell,
   MessageSquare,
@@ -22,6 +22,11 @@ export default function Navbar() {
   const [openMsg, setOpenMsg] = useState(false);
   const [openUser, setOpenUser] = useState(false);
   const searchRef = useRef(null);
+
+  // Notification state
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNoti, setLoadingNoti] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Auth state (simple)
   const [user, setUser] = useState(() => {
@@ -47,12 +52,49 @@ export default function Navbar() {
     };
   }, []);
 
+  // Load notifications when user is logged in and notification panel is opened
+  useEffect(() => {
+    if (!user || !openNoti) return;
+    
+    const fetchNotifications = async () => {
+      try {
+        setLoadingNoti(true);
+        const response = await fetch(`/api/notifications/unread/${user.id}`);
+        if (!response.ok) throw new Error('Failed to fetch notifications');
+        const data = await response.json();
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.read).length);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        // Fallback to demo data if API fails
+        setNotifications([
+          {
+            id: "n1",
+            message: "New review on 'Clean Code'",
+            timestamp: new Date(Date.now() - 120000).toISOString(),
+            read: false
+          },
+          {
+            id: "n2",
+            message: "Your upload was approved",
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            read: false
+          }
+        ]);
+      } finally {
+        setLoadingNoti(false);
+      }
+    };
+
+    fetchNotifications();
+  }, [openNoti, user]);
+
   // Close popups on outside click
   useEffect(() => {
     const onDocClick = (e) => {
       if (!searchRef.current) return;
       if (!searchRef.current.contains(e.target)) {
-        // don’t close search if user is typing; only close popovers
+        // don't close search if user is typing; only close popovers
         setOpenNoti(false);
         setOpenMsg(false);
         setOpenUser(false);
@@ -62,24 +104,7 @@ export default function Navbar() {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  // Demo notification/message data (customize freely later)
-  const notifications = [
-    {
-      id: "n1",
-      title: "New review on “Clean Code”",
-      time: "2m ago",
-    },
-    {
-      id: "n2",
-      title: "Your upload was approved",
-      time: "1h ago",
-    },
-    {
-      id: "n3",
-      title: "Weekly digest is ready",
-      time: "Yesterday",
-    },
-  ];
+  // Demo message data (customize freely later)
   const messages = [
     {
       id: "m1",
@@ -138,7 +163,10 @@ export default function Navbar() {
       navigate("/");
     } else {
       // (Demo) mark as signed in; navigate to dashboard
-      const demoUser = { name: "Member" };
+      const demoUser = { 
+        name: "Member",
+        id: "1" // Adding ID for notification API
+      };
       localStorage.setItem("authUser", JSON.stringify(demoUser));
       setUser(demoUser);
       setOpenUser(false);
@@ -146,8 +174,41 @@ export default function Navbar() {
     }
   };
 
+  const markAsRead = async (id) => {
+    try {
+      const response = await fetch(`/api/notifications/mark-as-read/${id}`, {
+        method: 'POST'
+      });
+      
+      if (!response.ok) throw new Error('Failed to mark as read');
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? {...n, read: true} : n)
+      );
+      setUnreadCount(prev => prev - 1);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white">
       {/* Container */}
       <div className="flex items-center justify-between mx-auto px-4 sm:px-6 lg:px-8 h-16">
         {/* Left: Logo + Grid */}
@@ -188,7 +249,9 @@ export default function Navbar() {
             >
               <Bell className="w-5 h-5 text-gray-700 cursor-pointer" />
               {/* unread dot */}
-              <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full" />
+              )}
             </button>
 
             {/* Messages */}
@@ -229,22 +292,37 @@ export default function Navbar() {
             {/* Notifications panel */}
             {openNoti && (
               <div className="absolute right-0 top-10 w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                <div className="px-4 py-3 border-b font-semibold text-gray-800">
-                  Notifications
+                <div className="px-4 py-3 border-b font-semibold text-gray-800 flex justify-between items-center">
+                  <span>Notifications</span>
+                  {loadingNoti && (
+                    <span className="text-xs text-gray-500">Loading...</span>
+                  )}
                 </div>
-                <ul className="max-h-80 overflow-auto">
-                  {notifications.map((n) => (
-                    <li
-                      key={n.id}
-                      className="px-4 py-3 hover:bg-gray-50 text-sm text-gray-700"
-                    >
-                      <div className="font-medium">{n.title}</div>
-                      <div className="text-xs text-gray-500">{n.time}</div>
-                    </li>
-                  ))}
-                </ul>
-                <div className="px-4 py-2 text-xs text-sky-600 font-medium hover:underline cursor-pointer">
-                  View all
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-6 text-sm text-gray-500 text-center">
+                    {loadingNoti ? 'Loading...' : 'No new notifications'}
+                  </div>
+                ) : (
+                  <ul className="max-h-80 overflow-auto">
+                    {notifications.map((n) => (
+                      <li
+                        key={n.id}
+                        className={`px-4 py-3 hover:bg-gray-50 text-sm ${!n.read ? 'bg-blue-50' : 'text-gray-700'}`}
+                        onClick={() => markAsRead(n.id)}
+                      >
+                        <div className="font-medium">{n.message}</div>
+                        <div className="text-xs text-gray-500">
+                          {formatTime(n.timestamp)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div 
+                  className="px-4 py-2 text-xs text-sky-600 font-medium hover:underline cursor-pointer"
+                  onClick={() => navigate('/notifications')}
+                >
+                  View all notifications
                 </div>
               </div>
             )}
@@ -309,6 +387,19 @@ export default function Navbar() {
                       Upload a Book
                     </button>
                   </li>
+                  {user && (
+                    <li>
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                        onClick={() => {
+                          setOpenUser(false);
+                          navigate("/notifications");
+                        }}
+                      >
+                        Notifications
+                      </button>
+                    </li>
+                  )}
                 </ul>
                 <div className="border-t">
                   <button
@@ -366,7 +457,7 @@ export default function Navbar() {
               <div className="absolute left-0 right-0 top-12 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                 {results.length === 0 ? (
                   <div className="px-4 py-6 text-sm text-gray-500">
-                    No matches for “{query}”
+                    No matches for "{query}"
                   </div>
                 ) : (
                   <ul className="max-h-80 overflow-auto divide-y">
