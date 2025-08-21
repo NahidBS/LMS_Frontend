@@ -196,6 +196,8 @@ export default function BookDetails() {
     // Update availability (reduce by 1)
     await updateAvailability(bookData.availableCopies - 1);
 
+    
+
     // Add to local storage
     const stored = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
     const alreadyExists = stored.find((b) => b.id === bookData.id);
