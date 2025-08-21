@@ -72,12 +72,42 @@ export default function FillUpForm() {
     }));
   };
 
-  const handleSubmit = () => {
-    console.log("Submitted Data:", formData);
-    alert("Form submitted successfully!");
-    // go directly to the user dashboard after success
+  // const handleSubmit = () => {
+  //   console.log("Submitted Data:", formData);
+  //   alert("Form submitted successfully!");
+  //   // go directly to the user dashboard after success
+  //   navigate("/dashboard");
+  // };
+  const handleSubmit = async () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user"));
+    const book = borrowedBooks[0];
+
+    const userId = user?.id || user?.userId;
+    const bookId = book?.id;
+
+    if (!userId || !bookId) {
+      alert("Missing user or book info");
+      console.log("Debug:", { user, book });
+      return;
+    }
+
+    const res = await api.post("/borrow/create", {
+      // userId: user.id,
+      // bookId: book.id
+      userId,
+      bookId
+    });
+
+    console.log("Borrow Created:", res.data);
+    alert("Book borrowed successfully!");
     navigate("/dashboard");
-  };
+  } catch (err) {
+    console.error("Borrow failed:", err);
+    alert("Failed to borrow book");
+  }
+};
+
 
   return (
     <div className="flex min-h-screen bg-gray-100">
