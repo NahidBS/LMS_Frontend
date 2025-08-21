@@ -20,6 +20,13 @@ import ManageCategory from "./pages/ManageCategory/ManageCategory";
 import UserSettings from './pages/UserSettings/UserSettings';
 import DonationRequest from './pages/DonationRequest/DonationRequest';
 import AdminSettings from './pages/AdminSettings/AdminSettings';
+import UserHistory from './pages/UserHistory/UserHistory';
+import Unauthorized from './pages/Unauthorized/Unauthorized';
+import Logout from './pages/auth/Logout';
+import ManageFeature from './pages/ManageFeature/ManageFeature';
+import ProtectedRoute from "./routes/ProtectedRoute";
+import DashRouter from './routes/DashRouter';
+import UserDashboard from './pages/user/UserDashboard';
 
 function App() {
   return (
@@ -28,36 +35,85 @@ function App() {
       <main className="flex-grow">
         <Routes>
           {/* Wrap everything with your Layout */}
+
+          {/* Public routes */}
           <Route element={<Layout />}>
-            {/* Canonical routes */}
             <Route path="/" element={<Home />} />
+            <Route path="/all-genres" element={<AllGenres />} />
             <Route path="/book/:id" element={<BookDetails />} />
             <Route path="/borrowed" element={<Borrowed />} />
-            <Route path="/fill-up-form" element={<FillUpForm />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/fill-up-form/:id" element={<FillUpForm />} />
             <Route path="/upload" element={<UploadBookPage />} />
-            <Route path="/all-genres" element={<AllGenres />} />
+           
             <Route path="/manage-books" element={<ManageBooks />} />
             <Route path="/manage-category" element={<ManageCategory />} />
-
-
-            <Route path="/settings" element={<UserSettings/>} />
+            <Route path="/settings" element={<UserSettings />} />
+            <Route path="/history" element={<UserHistory />} />
             <Route path="/setting" element={<AdminSettings />} />
+            <Route path="/manage-feature" element={<ManageFeature />} />
             <Route path="/donation-request" element={<DonationRequest />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+          </Route>
 
-            {/* ---- QUICK ALIASES so /admin/* also works ---- */}
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "user"]}>
+                  <DashRouter />
+                </ProtectedRoute>
+              }
+            />
+          {/* User-protected routes */}
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["user", "admin"]}>
+                <Layout />
+              </ProtectedRoute>
+            }>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/borrowed" element={<Borrowed />} />
+            <Route path="/fill-up-form" element={<FillUpForm />} />
+            <Route path="/upload" element={<UploadBookPage />} />
+            <Route path="/all-genres" element={<AllGenres />} />
+            <Route path="/settings" element={<UserSettings />} />
+            <Route path="/donation-request" element={<DonationRequest />} />
+          </Route>
+
+          {/* Admin-only routes */}
+          <Route 
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <Layout />
+              </ProtectedRoute>
+            }>
             <Route path="/admin/dashboard" element={<Dashboard />} />
-            <Route path="/admin/borrowed" element={<Borrowed />} />
-            <Route path="/admin/fill-up-form" element={<FillUpForm />} />
-            <Route path="/admin/upload" element={<UploadBookPage />} />
-            <Route path="/admin/all-genres" element={<AllGenres />} />
             <Route path="/admin/manage-books" element={<ManageBooks />} />
             <Route path="/admin/manage-category" element={<ManageCategory />} />
-
-            {/* Fallbacks */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
           </Route>
+
+          {/* User-only routes */}
+          <Route 
+            element={
+              <ProtectedRoute allowedRoles={["user"]}>
+                <Layout />
+              </ProtectedRoute>
+            }>
+            <Route path="/user/dashboard" element={<UserDashboard />} />
+            <Route path="/user/manage-books" element={<ManageBooks />} />
+            <Route path="/user/manage-category" element={<ManageCategory />} />
+            <Route path="/user/settings" element={<UserSettings />} />
+          </Route>
+
+          {/* Quick redirect aliases */}
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+
+          {/* Fallbacks */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+
+
+          
         </Routes>
       </main>
     </BrowserRouter>

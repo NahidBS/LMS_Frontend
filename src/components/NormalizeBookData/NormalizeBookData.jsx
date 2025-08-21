@@ -17,7 +17,7 @@ export default function normalizeBookData(b) {
     coverImage: b.book_cover_url ||
     "https://upload.wikimedia.org/wikipedia/en/7/78/Patterns_cover.jpg",
     rating: b.average_rating || b.rating || 0,
-    ratingCount: b.rating_count || b.review_count || 0,
+    ratingCount: b.review_count ||  0,
     category: b.category?.name  || "Uncategorized", // ✅ updated
     status: b.available_copies > 0 ? "Available" : "Out of Stock",
     summary: b.short_details || b.shortDetails || "",
