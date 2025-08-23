@@ -6,11 +6,13 @@ import api from "../../api";
 
 const badge = (type) => {
   const base = "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium";
-  switch (type?.toLowerCase()) {
-    case "active": return `${base} bg-sky-100 text-sky-700`;
-    case "returned": return `${base} bg-green-100 text-green-700`;
-    case "pending": return `${base} bg-amber-100 text-amber-700`;
-    case "rejected": return `${base} bg-violet-100 text-violet-700`;
+  switch ((type || "").toUpperCase()) {
+    case "REQUESTED": return `${base} bg-amber-100 text-amber-700`;
+    case "ACCEPTED": return `${base} bg-blue-100 text-blue-700`;
+    case "ACTIVE": return `${base} bg-sky-100 text-sky-700`;
+    case "RETURNED": return `${base} bg-green-100 text-green-700`;
+    case "OVERDUE": return `${base} bg-red-100 text-red-700`;
+    case "REJECTED": return `${base} bg-violet-100 text-violet-700`;
     default: return `${base} bg-gray-100 text-gray-700`;
   }
 };
@@ -35,7 +37,7 @@ export default function UserHistory() {
     borrowed: item.borrow_date ?? "—",
     due: item.due_date ?? "—",
     returned: item.return_date ?? "—",
-    status: item.status ?? "—",
+     status: (item.status || "").toUpperCase(),
     canBeExtended: item.can_be_extended ?? false,
     note: item.note ?? "",
   });
@@ -45,7 +47,7 @@ export default function UserHistory() {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       if (!user?.userId) return;
 
-      const response = await api.get(`/borrow/user/${user.userId}`);
+      const response = await api.get(`/borrow/user/${user.userId}/history`);
       const data = response.data.content.map(normalizeBorrow);
       setBorrowedHistory(data);
     } catch (error) {
@@ -53,19 +55,19 @@ export default function UserHistory() {
     }
   };
 
-  // Filters / search
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return borrowedHistory.filter((r) => {
-      const matchesType = typeFilter === "All" || r.status.toLowerCase() === typeFilter.toLowerCase();
-      const matchesSearch =
-        !term ||
-        [r.id, r.book, r.status]
-          .filter(Boolean)
-          .some((v) => String(v).toLowerCase().includes(term));
-      return matchesType && matchesSearch;
-    });
-  }, [borrowedHistory, q, typeFilter]);
+    // Filters / search
+    const filtered = useMemo(() => {
+      const term = q.trim().toLowerCase();
+      return borrowedHistory.filter((r) => {
+        const matchesType = typeFilter === "All" || r.status.toLowerCase() === typeFilter.toLowerCase();
+        const matchesSearch =
+          !term ||
+          [r.id, r.book, r.status]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(term));
+        return matchesType && matchesSearch;
+      });
+    }, [borrowedHistory, q, typeFilter]);
 
   const openDetail = (row) => setDetail(row);
   const closeDetail = () => setDetail(null);
@@ -83,7 +85,7 @@ export default function UserHistory() {
             <span className="inline-flex items-center gap-1 text-sm text-gray-600">
               Type:
             </span>
-            {["All", "Active", "Returned", "Pending", "Rejected"].map((t) => (
+            {["All", "Requested", "Accepted", "Active", "Returned", "Overdue", "Rejected"].map((t) => (
               <button
                 key={t}
                 type="button"
