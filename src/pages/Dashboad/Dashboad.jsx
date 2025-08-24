@@ -12,6 +12,8 @@ export default function Dashboard() {
   const [statistics, setStatistics] = useState();
   const [borrowsRequests, setBorrowsRequests] = useState([]);
   const [overDue, setOverDue] = useState([]);
+  const [recentBorrows, setRecentBorrows] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [weeklyData, setWeeklyData] = useState({
     borrowed: [0, 0, 0, 0, 0, 0, 0],
     returned: [0, 0, 0, 0, 0, 0, 0],
@@ -26,8 +28,23 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
-        const response = await api.get("/borrow/stats");
-        setStatistics(response.data);
+        const response = await api.get("/borrow/list", {
+          params: { size: 1000 } // fetch all borrows, adjust if backend paginates
+        });
+        const borrows = response.data.content || [];
+
+        const stats = {
+          total_borrowed_books: borrows.filter(b => b.status === "ACTIVE").length,
+          total_returned_books: borrows.filter(b => b.status === "RETURNED").length,
+          total_overdue_books: borrows.filter(b => b.is_overdue).length,
+          current_total_books: new Set(borrows.map(b => b.book?.id)).size, // fallback
+          new_members: new Set(borrows.map(b => b.user?.id)).size, // fallback if no /user API
+          pending_borrows: borrows.filter(b => b.status === "PENDING").length,
+          total_borrow_requests: borrows.length,
+          total_borrow_rejected: borrows.filter(b => b.status === "REJECTED").length,
+        };
+
+        setStatistics(stats);
       } catch (error) {
         console.error("Error fetching statistics:", error);
       }
@@ -43,9 +60,26 @@ export default function Dashboard() {
       borrowed: item.borrow_date ?? "—",
       returned: item.due_date ?? "—",
       book: item.book?.name ?? "",
-      cover: item.book?.bookCoverUrl ?? PLACEHOLDER_IMG,
+      cover: item.book?.book_cover_url ?? PLACEHOLDER_IMG,
     };
   }
+
+  // -------- Fetch Recent Borrows --------
+  useEffect(() => {
+    const fetchRecentBorrows = async () => {
+      try {
+        const response = await api.get("/borrow/list", {
+          params: { page: 0, size: 10 },
+        });
+        setRecentBorrows(response.data.content || []);
+      } catch (error) {
+        console.error("Error fetching recent borrows:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRecentBorrows();
+  }, []);
 
   // --------- Fetch borrow + overdue ---------
   useEffect(() => {
@@ -189,16 +223,18 @@ export default function Dashboard() {
         {/* Top stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Borrowed Books", value: statistics?.borrowedBooks },
-            { label: "Returned Books", value: statistics?.returnedBooks },
-            { label: "Overdue Books", value: statistics?.overdueBooks },
+            { label: "Borrowed Books", value: statistics?.total_borrowed_books },
+            { label: "Returned Books", value: statistics?.total_returned_books },
+            { label: "Overdue Books", value: statistics?.total_overdue_books },
             { label: "Total Books", value: statistics?.current_total_books },
             { label: "New Members", value: statistics?.new_members },
             { label: "Pending", value: statistics?.pending_borrows },
+            { label: "Total Requests", value: statistics?.total_borrow_requests },
+            { label: "Rejected Requests", value: statistics?.total_borrow_rejected },
           ].map((item, i) => (
             <div key={i} className="bg-white rounded shadow p-4 text-center">
               <p className="text-sm text-gray-500">{item.label}</p>
-              <p className="text-xl font-bold text-gray-800">{item.value}</p>
+              <p className="text-xl font-bold text-gray-800">{item.value ?? 0}</p>
             </div>
           ))}
         </div>
@@ -282,6 +318,53 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Recent Borrow Requests</h2>
+          {loading ? (
+            <p>Loading...</p>
+          ) : recentBorrows.length > 0 ? (
+            <ul className="space-y-4">
+              {recentBorrows.map((borrow) => (
+                <li
+                  key={borrow.id}
+                  className="flex items-center justify-between border-b pb-2"
+                >
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={borrow.book?.book_cover_url|| PLACEHOLDER_IMG}
+                      alt={borrow.book?.name}
+                      className="w-12 h-16 object-cover rounded"
+                    />
+                    <div>
+                      <p className="font-medium">{borrow.book?.name}</p>
+                      <p className="text-sm text-gray-500">
+                        Borrower: {borrow.user?.username || "Unknown"}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      borrow.status === "ACTIVE"
+                        ? "bg-blue-100 text-blue-800"
+                        : borrow.status === "RETURNED"
+                        ? "bg-green-100 text-green-800"
+                        : borrow.status === "PENDING"
+                        ? "bg-orange-100 text-orange-800"
+                        : borrow.status === "REJECTED"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {borrow.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No recent borrow requests found.</p>
+          )}
+        </div>
+
         {/* borrow request */}
         <div className="bg-white rounded shadow p-4">
           <div className="flex justify-between items-center mb-2">
@@ -344,4 +427,14 @@ export default function Dashboard() {
       {/* confirm modal + toast kept same as before... */}
     </div>
   );
+  // -------- Small Stat Card Component --------
+  const StatCard = ({ title, value, icon }) => (
+    <div className="bg-white shadow rounded-lg p-4 flex items-center space-x-4">
+      <div className="p-3 rounded-full bg-gray-100">{icon}</div>
+      <div>
+        <p className="text-sm text-gray-500">{title}</p>
+        <p className="text-xl font-bold">{value ?? 0}</p>
+      </div>
+    </div>
+);
 }

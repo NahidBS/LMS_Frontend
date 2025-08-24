@@ -19,7 +19,7 @@ import * as jwtDecode from "jwt-decode"; // ✅ namespace import
 // ---------------------
 
 // DEV AUTO LOGIN
-const DEV_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiVVNFUiIsInVzZXJJZCI6NSwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsInN1YiI6InRlc3R1c2VyIiwiaXNzIjoiTGlicmFyeU1hbmFnZW1lbnRTeXN0ZW0iLCJhdWQiOiJMaWJyYXJ5VXNlcnMiLCJpYXQiOjE3NTU5MzMzODUsImV4cCI6MTc1NTkzNjk4NX0.7mZD08Zc9VjHtavCQNKXmhPZBUVtYxJ_t6U5FXIw19k";
+const DEV_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiQURNSU4iLCJ1c2VySWQiOjQsImVtYWlsIjoiY2hhcmxpZS53aWxzb25AZW1haWwuY29tIiwic3ViIjoiYWRtaW4iLCJpc3MiOiJMaWJyYXJ5TWFuYWdlbWVudFN5c3RlbSIsImF1ZCI6IkxpYnJhcnlVc2VycyIsImlhdCI6MTc1NjAzMzE4NiwiZXhwIjoxNzU2MDM2Nzg2fQ.9O_lkIBB_2YYHZjQIuPBSHe5uVsxqMZWos18MhycotA";
 const decoded = jwtDecode.default(DEV_TOKEN);
 localStorage.setItem("token", DEV_TOKEN);
 localStorage.setItem("user", JSON.stringify(decoded));
