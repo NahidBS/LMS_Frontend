@@ -23,7 +23,7 @@ export default function normalizeBookData(b) {
     summary: b.short_details || b.shortDetails || "",
     summaryTail: b.short_details || null,
     publisher: b.publisher || "",
-     publishDate: b.publication_year || "",
+    publishDate: b.publication_year || "",
     availableCopies: b.available_copies ?? 0,
     totalCopies: b.total_copies ?? 0,
     pdfLink: b.pdf_file_url || b.pdfLink || "",
