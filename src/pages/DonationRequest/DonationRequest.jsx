@@ -2,31 +2,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   HandHeart,
-  CheckCircle2,
-  XCircle,
   Clock,
-  Search,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
+  Plus,
+  BookOpen,
+  User,
+  Phone,
+  MapPin,
+  Edit3,
+  Calendar
 } from "lucide-react";
-import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
-
-// ---- LocalStorage key ----
-const LS_KEY = "donation_requests_v1";
-
-// ---- Seed data if LS is empty (demo) ----
-const SEED = [
-  { id: "DR-1001", donorName: "Mahin Hasan", email: "mahin@example.com", amount: 2000, bookTitle: "JavaScript and jQuery", note: "For student program", createdAt: "2025-08-10T09:22:00Z", status: "pending" },
-  { id: "DR-1002", donorName: "Farhana Akter", email: "farhana@example.com", amount: 1200, bookTitle: "Entrepreneurship", note: "", createdAt: "2025-08-12T12:05:00Z", status: "pending" },
-  { id: "DR-1003", donorName: "Rakibul Islam", email: "rakibul@example.com", amount: 600, bookTitle: "Cloud Computing", note: "Small library", createdAt: "2025-08-14T15:50:00Z", status: "accepted" },
-  { id: "DR-1004", donorName: "Sumaiya Noor", email: "sumaiya@example.com", amount: 900, bookTitle: "HTML & CSS", note: "", createdAt: "2025-08-15T18:30:00Z", status: "rejected" },
-];
+import UserSidebar from "../../components/UserSidebar/UserSidebar";
+import api from "../../api";
 
 function fmtDate(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
+  return d.toLocaleDateString();
 }
 
 export default function DonationRequest() {
@@ -35,283 +26,235 @@ export default function DonationRequest() {
   }, []);
 
   // ---------- Data ----------
-  const [items, setItems] = useState([]);     // requests (pending/accepted/rejected)
-  const [history, setHistory] = useState([]); // actions log
+  const [donationRequests, setDonationRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Load from LS (or seed)
-  useEffect(() => {
+  // Form state for creating donation request
+  const [formData, setFormData] = useState({
+    bookTitle: "",
+    authorName: "",
+    reason: "",
+    brainStationId: "",
+    phoneNumber: "",
+    address: ""
+  });
+
+  // Load donation requests from API
+  const loadDonationRequests = async () => {
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setItems(Array.isArray(parsed.items) ? parsed.items : []);
-        setHistory(Array.isArray(parsed.history) ? parsed.history : []);
+      setLoading(true);
+      setError(null);
+      
+      // Fetch all donation requests for the user
+      const response = await api.get("/Donations/user");
+      
+      if (response.data && Array.isArray(response.data)) {
+        setDonationRequests(response.data);
       } else {
-        const seeded = SEED;
-        const initialHistory = seeded
-          .filter((it) => it.status !== "pending")
-          .map((it, idx) => ({
-            id: `${it.id}-INIT-${idx}`,
-            requestId: it.id,
-            action: it.status, // accepted | rejected
-            at: new Date().toISOString(),
-            amount: it.amount,
-            donorName: it.donorName,
-            bookTitle: it.bookTitle,
-          }));
-        localStorage.setItem(LS_KEY, JSON.stringify({ items: seeded, history: initialHistory }));
-        setItems(seeded);
-        setHistory(initialHistory);
+        setDonationRequests([]);
       }
-    } catch {
-      // Fallback to seed on parse error
-      localStorage.setItem(LS_KEY, JSON.stringify({ items: SEED, history: [] }));
-      setItems(SEED);
-      setHistory([]);
+    } catch (err) {
+      console.error("Error loading donation requests:", err);
+      setError("Failed to load donation requests");
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
 
-  // Keep multiple tabs in sync
+  // Load data on component mount
   useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === LS_KEY && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          setItems(Array.isArray(parsed.items) ? parsed.items : []);
-          setHistory(Array.isArray(parsed.history) ? parsed.history : []);
-        } catch {}
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    loadDonationRequests();
   }, []);
 
-  const persist = (nextItems, nextHistory) => {
-    setItems(nextItems);
-    setHistory(nextHistory);
-    localStorage.setItem(LS_KEY, JSON.stringify({ items: nextItems, history: nextHistory }));
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  // ---------- UI state ----------
-  const [page, setPage] = useState(1); // 1 = overview, 2 = full history
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // all | pending | accepted | rejected
-
-  // ---------- Toast (animated popup) ----------
-  const [toast, setToast] = useState({ open: false, type: "accepted", msg: "" });
-  const showToast = (type, msg) => {
-    setToast({ open: true, type, msg });
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => setToast((t) => ({ ...t, open: false })), 1800);
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const response = await api.post("/Donations", formData);
+      
+      if (response.status === 200 || response.status === 201) {
+        // Reload the donation requests to include the new one
+        await loadDonationRequests();
+        setShowCreateForm(false);
+        setFormData({
+          bookTitle: "",
+          authorName: "",
+          reason: "",
+          brainStationId: "",
+          phoneNumber: "",
+          address: ""
+        });
+        
+        // Show success message
+        setError(null);
+      }
+    } catch (err) {
+      console.error("Error creating donation request:", err);
+      setError("Failed to submit donation request");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ---------- Derived ----------
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return items.filter((it) => {
-      const matchQ =
-        !q ||
-        it.donorName.toLowerCase().includes(q) ||
-        it.email.toLowerCase().includes(q) ||
-        it.bookTitle.toLowerCase().includes(q) ||
-        String(it.amount).includes(q) ||
-        it.id.toLowerCase().includes(q);
-      const matchS = statusFilter === "all" ? true : it.status === statusFilter;
-      return matchQ && matchS;
-    });
-  }, [items, query, statusFilter]);
-
-  const pending = filtered.filter((x) => x.status === "pending");
-  const accepted = filtered.filter((x) => x.status === "accepted");
-  const rejected = filtered.filter((x) => x.status === "rejected");
-
-  const totalAccepted = items.filter((x) => x.status === "accepted").length;
-  const totalRejected = items.filter((x) => x.status === "rejected").length;
-
-  // ---------- Actions (Accept/Reject) with persistent history ----------
-  const actOn = (id, action) => {
-    if (action !== "accepted" && action !== "rejected") return;
-
-    const src = items.find((x) => x.id === id);
-    // Update item status
-    const nextItems = items.map((it) =>
-      it.id === id ? { ...it, status: action } : it
-    );
-
-    // Log to history
-    const entry = src
-      ? {
-          id: `${id}-${Date.now()}`, // unique
-          requestId: id,
-          action,                    // accepted | rejected
-          at: new Date().toISOString(),
-          amount: src.amount,
-          donorName: src.donorName,
-          bookTitle: src.bookTitle,
-        }
-      : null;
-
-    const nextHistory = entry ? [entry, ...history] : history;
-
-    // Persist to LS so a page refresh shows the new history
-    persist(nextItems, nextHistory);
-
-    // Animated toast
-    showToast(
-      action,
-      `${action === "accepted" ? "Accepted" : "Rejected"}: ${src?.donorName || "Request"}`
-    );
-
-    // Optional UX: jump to History page after decision
-    setPage(2);
-  };
-
-  // ---------- Small UI components ----------
-  const StatCard = ({ icon, label, value, tone = "sky" }) => (
-    <div className="flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 shadow-sm">
-      <div
-        className={`rounded-full p-2 ${
-          tone === "green"
-            ? "bg-green-50 text-green-600"
-            : tone === "rose"
-            ? "bg-rose-50 text-rose-600"
-            : "bg-sky-50 text-sky-600"
-        }`}
-      >
-        {icon}
+  // Create Donation Request Form
+  const CreateDonationForm = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800">Create Donation Request</h3>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Book Title *</label>
+            <div className="relative">
+              <BookOpen className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              <input
+                type="text"
+                name="bookTitle"
+                value={formData.bookTitle}
+                onChange={handleInputChange}
+                required
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400"
+                placeholder="Enter book title"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Author Name *</label>
+            <div className="relative">
+              <User className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              <input
+                type="text"
+                name="authorName"
+                value={formData.authorName}
+                onChange={handleInputChange}
+                required
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400"
+                placeholder="Enter author name"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Donation *</label>
+            <div className="relative">
+              <Edit3 className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              <textarea
+                name="reason"
+                value={formData.reason}
+                onChange={handleInputChange}
+                required
+                rows={3}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400"
+                placeholder="Why are you donating this book?"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">BrainStation ID</label>
+            <input
+              type="text"
+              name="brainStationId"
+              value={formData.brainStationId}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400"
+              placeholder="Enter your BrainStation ID"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              <input
+                type="tel"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleInputChange}
+                required
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400"
+                placeholder="Enter phone number"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              <textarea
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                required
+                rows={2}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400"
+                placeholder="Enter your address"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:opacity-50"
+            >
+              {loading ? "Submitting..." : "Submit Request"}
+            </button>
+          </div>
+        </form>
       </div>
-      <div>
-        <div className="text-xs text-gray-500">{label}</div>
-        <div className="text-lg font-semibold text-gray-900">{value}</div>
-      </div>
     </div>
   );
 
-  // NOTE: Columns trimmed per your request (no email, amount, date; SL # instead of ID)
-  const Table = ({ rows, showActions }) => (
-    <div className="overflow-x-hidden overflow-y-hidden no-scrollbar rounded-lg border border-gray-300">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-gray-700 border-b border-gray-300">
-          <tr className="text-left">
-            <th className="px-4 py-2 whitespace-nowrap">Serial No #</th>
-            <th className="px-4 py-2">Donor</th>
-            <th className="px-4 py-2">Book / Purpose</th>
-            <th className="px-4 py-2">Status</th>
-            {showActions && <th className="px-4 py-2 text-right">Action</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={showActions ? 5 : 4} className="px-4 py-6 text-center text-gray-500">
-                No records found.
-              </td>
-            </tr>
-          ) : (
-            rows.map((r, idx) => (
-              <tr key={r.id} className="border-t border-gray-300">
-                <td className="px-4 py-2 font-medium">{idx + 1}</td>
-                <td className="px-4 py-2">{r.donorName}</td>
-                <td className="px-4 py-2">
-                  <div className="font-medium">{r.bookTitle}</div>
-                  {r.note && <div className="text-xs text-gray-500">{r.note}</div>}
-                </td>
-                <td className="px-4 py-2">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border
-                      ${
-                        r.status === "accepted"
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : r.status === "rejected"
-                          ? "bg-rose-50 text-rose-700 border-rose-200"
-                          : "bg-amber-50 text-amber-700 border-amber-200"
-                      }`}
-                  >
-                    {r.status === "accepted" ? (
-                      <CheckCircle2 size={14} />
-                    ) : r.status === "rejected" ? (
-                      <XCircle size={14} />
-                    ) : (
-                      <Clock size={14} />
-                    )}
-                    {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
-                  </span>
-                </td>
-                {showActions && (
-                  <td className="px-4 py-2">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => actOn(r.id, "accepted")}
-                        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-500"
-                      >
-                        <CheckCircle2 size={14} /> Accept
-                      </button>
-                      <button
-                        onClick={() => actOn(r.id, "rejected")}
-                        className="inline-flex items-center gap-1 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"
-                      >
-                        <XCircle size={14} /> Reject
-                      </button>
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  // History page — trimmed columns (no date/email/amount), shows Serial No #
-  const HistoryTable = ({ rows }) => (
-    <div className="overflow-x-hidden overflow-y-hidden no-scrollbar rounded-lg border border-gray-300">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-gray-700 border-b border-gray-300">
-          <tr className="text-left">
-            <th className="px-4 py-2">Serial No #</th>
-            <th className="px-4 py-2">Donor</th>
-            <th className="px-4 py-2">Book / Purpose</th>
-            <th className="px-4 py-2">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
-                No history yet.
-              </td>
-            </tr>
-          ) : (
-            rows.map((h, idx) => (
-              <tr key={h.id} className="border-t border-gray-300">
-                <td className="px-4 py-2 font-medium">{idx + 1}</td>
-                <td className="px-4 py-2">{h.donorName}</td>
-                <td className="px-4 py-2">{h.bookTitle}</td>
-                <td className="px-4 py-2">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border
-                      ${
-                        h.action === "accepted"
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : "bg-rose-50 text-rose-700 border-rose-200"
-                      }`}
-                  >
-                    {h.action === "accepted" ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                    {h.action.charAt(0).toUpperCase() + h.action.slice(1)}
-                  </span>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
+  // Status badge component
+  const StatusBadge = ({ status }) => {
+    let bgColor = "bg-gray-100";
+    let textColor = "text-gray-800";
+    
+    if (status === "Approved") {
+      bgColor = "bg-green-100";
+      textColor = "text-green-800";
+    } else if (status === "Rejected") {
+      bgColor = "bg-red-100";
+      textColor = "text-red-800";
+    } else if (status === "Pending") {
+      bgColor = "bg-yellow-100";
+      textColor = "text-yellow-800";
+    }
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
+        {status}
+      </span>
+    );
+  };
 
   return (
     <div className="min-h-screen flex bg-gray-100 overflow-hidden">
-      <Sidebar />
+      <UserSidebar />
 
       <main className="flex-1 p-6 space-y-6 overflow-y-auto no-scrollbar">
         <div className="flex items-start justify-between flex-wrap gap-3">
@@ -320,145 +263,104 @@ export default function DonationRequest() {
               <HandHeart className="text-sky-600" /> Donation Request
             </h1>
             <p className="text-sm text-gray-600">
-              Accept / Reject commissions and view full history (persists on refresh).
+              Manage your book donation requests and track their status.
             </p>
           </div>
 
-          {/* Simple 2-page pagination */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              <ChevronLeft size={16} /> Prev
-            </button>
-            <span className="text-sm font-medium">Page {page} / 2</span>
-            <button
-              onClick={() => setPage((p) => Math.min(2, p + 1))}
-              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              Next <ChevronRight size={16} />
-            </button>
-          </div>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500"
+          >
+            <Plus size={16} /> New Request
+          </button>
         </div>
 
-        {/* Filters */}
-        <section className="bg-white rounded-lg shadow border border-gray-300">
-          <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by donor, book or ID"
-                className="w-64 md:w-80 rounded border border-gray-300 pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-              >
-                <option value="all">All statuses</option>
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {error}
           </div>
-        </section>
+        )}
 
-        {page === 1 ? (
-          <>
-            {/* Stats */}
-            <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard icon={<Clock size={18} />} label="Pending" value={pending.length} />
-              <StatCard icon={<CheckCircle2 size={18} />} label="Accepted" value={totalAccepted} tone="green" />
-              <StatCard icon={<XCircle size={18} />} label="Rejected" value={totalRejected} tone="rose" />
-            </section>
+        
 
-            {/* Pending (Accept/Reject) */}
-            <section className="bg-white rounded-lg shadow border border-gray-300 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-300">
-                <h3 className="text-sm font-semibold text-gray-800">Pending Requests</h3>
-              </div>
-              <div className="p-4">
-                <Table rows={pending} showActions />
-              </div>
-            </section>
-
-            {/* Accepted / Rejected (read-only) */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <section className="bg-white rounded-lg shadow border border-gray-300 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-300">
-                  <h3 className="text-sm font-semibold text-gray-800">Accepted</h3>
-                </div>
-                <div className="p-4">
-                  <Table rows={accepted} showActions={false} />
-                </div>
-              </section>
-
-              <section className="bg-white rounded-lg shadow border border-gray-300 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-300">
-                  <h3 className="text-sm font-semibold text-gray-800">Rejected</h3>
-                </div>
-                <div className="p-4">
-                  <Table rows={rejected} showActions={false} />
-                </div>
-              </section>
-            </div>
-          </>
+        {loading ? (
+          
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+          </div>
         ) : (
-          // Page 2: Full History (persists on refresh)
           <section className="bg-white rounded-lg shadow border border-gray-300 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-300">
-              <h3 className="text-sm font-semibold text-gray-800">Full History (Accepted & Rejected)</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Every accept/reject action is recorded and saved to your browser. Refresh the page and it remains.
-              </p>
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-800">Donation Requests</h3>
+              <span className="text-sm text-gray-500">{donationRequests.length} requests</span>
             </div>
-            <div className="p-4">
-              <HistoryTable rows={history} />
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book Title</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved Date</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {donationRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                        No donation requests found.
+                      </td>
+                    </tr>
+                  ) : (
+                    donationRequests.map((request) => (
+                      <tr key={request.donationRequestId}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          #{request.donationRequestId}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div className="font-medium">{request.bookTitle}</div>
+                          {request.authorName && (
+                            <div className="text-xs text-gray-500">by {request.authorName}</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Calendar size={14} className="mr-1 text-gray-400" />
+                            {fmtDate(request.requestDate)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <StatusBadge status={request.status} />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {request.processedDate ? (
+                            <div className="flex items-center">
+                              <Calendar size={14} className="mr-1 text-gray-400" />
+                              {fmtDate(request.processedDate)}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
       </main>
 
-      {/* Animated Toast (Professional) */}
-      {toast.open && (
-        <div className="fixed bottom-6 right-6 z-[60] animate-[toastIn_.22s_ease-out]">
-          <div className="bg-white border border-gray-300 shadow-xl rounded-xl p-4 w-[300px]">
-            <div className="flex items-start gap-3">
-              <div
-                className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${
-                  toast.type === "accepted" ? "bg-green-50 text-green-600" : "bg-rose-50 text-rose-600"
-                }`}
-              >
-                {toast.type === "accepted" ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-gray-900">
-                  {toast.msg}
-                </div>
-                <div className="text-xs text-gray-600">Action recorded in history.</div>
-              </div>
-            </div>
-            <div className="mt-3 h-0.5 rounded-full bg-gray-200 overflow-hidden">
-              <div className="h-full bg-sky-500 origin-left animate-[barShrink_1.6s_linear]"></div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Create Donation Form Modal */}
+      {showCreateForm && <CreateDonationForm />}
 
-      {/* Styles: no-scrollbar + animations */}
+      {/* Styles: no-scrollbar */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes toastIn { 0% { transform: translateY(10px); opacity: 0 } 100% { transform: translateY(0); opacity: 1 } }
-        @keyframes barShrink { 0% { transform: scaleX(1) } 100% { transform: scaleX(0) } }
       `}</style>
     </div>
   );
