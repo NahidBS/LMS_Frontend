@@ -2,10 +2,10 @@ import { Link, useLocation } from "react-router-dom";
 import {
   CalendarDays,
   BookOpen,
-  HelpCircle,
-  LogOut,
   Layers,
   HandHeart,
+  Settings, // <-- add this icon
+  LogOut,
 } from "lucide-react";
 
 export default function AdminDashboardSidebar() {
@@ -65,12 +65,15 @@ export default function AdminDashboardSidebar() {
               <HandHeart size={18} /> Manage Donation Requests
             </Link>
           </li>
+          {/* Updated link */}
           <li>
             <Link
-              to="/help"
-              className={location.pathname === "/help" ? navItemActive : navItem}
+              to="/admin/settings"
+              className={
+                location.pathname === "/admin/settings" ? navItemActive : navItem
+              }
             >
-              <HelpCircle size={18} /> Help
+              <Settings size={18} /> Settings
             </Link>
           </li>
         </ul>

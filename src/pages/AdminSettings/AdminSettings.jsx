@@ -9,6 +9,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
+import AdminDashboardSidebar from "../../components/AdminDashboardSidebar/AdminDashboardSidebar";
 
 const LS_KEY = "adminSettings_limits_v1";
 
@@ -106,7 +107,7 @@ export default function AdminSettings() {
 
   return (
     <div className="min-h-screen flex bg-gray-100">
-      <Sidebar />
+      <AdminDashboardSidebar activePage="settings" />
 
       <main className="flex-1 p-4 md:p-6 space-y-6">
         <header className="flex items-center justify-between">

@@ -44,7 +44,7 @@ function App() {
             <Route path="/book/:id" element={<BookDetails />} />
             <Route path="/borrowed" element={<Borrowed />} />
             <Route path="/fill-up-form/:id" element={<FillUpForm />} />
-            <Route path="/upload" element={<UploadBookPage />} />
+            {/* <Route path="/upload" element={<UploadBookPage />} /> */}
            
             <Route path="/manage-books" element={<ManageBooks />} />
             <Route path="/manage-category" element={<ManageCategory />} />
@@ -75,7 +75,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/borrowed" element={<Borrowed />} />
             <Route path="/fill-up-form" element={<FillUpForm />} />
-            <Route path="/upload" element={<UploadBookPage />} />
+            {/* <Route path="/upload" element={<UploadBookPage />} /> */}
             <Route path="/all-genres" element={<AllGenres />} />
             <Route path="/settings" element={<UserSettings />} />
             <Route path="/donation-request" element={<DonationRequest />} />
@@ -105,6 +105,7 @@ function App() {
             <Route path="/user/manage-books" element={<ManageBooks />} />
             <Route path="/user/manage-category" element={<ManageCategory />} />
             <Route path="/user/settings" element={<UserSettings />} />
+            <Route path="/upload" element={<UploadBookPage />} />
           </Route>
 
           {/* Quick redirect aliases */}
