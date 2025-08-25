@@ -57,6 +57,8 @@ export default function Dashboard() {
     return {
       id: item.id,
       user: item.user?.name ?? "—",
+      userId: item.user?.id ?? "—",
+      bookId: item.book?.id ?? "—",
       borrowed: item.borrow_date ?? "—",
       returned: item.due_date ?? "—",
       book: item.book?.name ?? "",
@@ -71,7 +73,14 @@ export default function Dashboard() {
         const response = await api.get("/borrow/list", {
           params: { page: 0, size: 10 },
         });
-        setRecentBorrows(response.data.content || []);
+        
+        // Sort by created_at in descending order (newest first)
+        const sortedBorrows = (response.data.content || []).sort((a, b) => {
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
+        
+        setRecentBorrows(sortedBorrows);
+        console.log("Recent borrows:", sortedBorrows);
       } catch (error) {
         console.error("Error fetching recent borrows:", error);
       } finally {
@@ -85,30 +94,35 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchBorrows = async () => {
       try {
-        // ✅ CHANGED: use real backend API
-        const resActive = await api.get("/borrow/list", {
-          params: { active: true },
+        // ✅ CHANGED: Fetch all borrows and filter for REQUESTED status
+        const resAll = await api.get("/borrow/list", {
+          params: { size: 1000 }, // Get all records
         });
-        setBorrowsRequests(resActive.data.content.map(normalizeBookData));
+        
+        // Filter for REQUESTED status only for the borrow requests table
+        const requestedBorrows = resAll.data.content.filter(
+          borrow => borrow.status === "REQUESTED"
+        );
+        setBorrowsRequests(requestedBorrows.map(normalizeBookData));
 
         const resOverdue = await api.get("/borrow/overdue");
         setOverDue(resOverdue.data.map(normalizeBookData));
 
-        // build weekly chart counts
+        // build weekly chart counts using all borrows
         const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         const borrowed = Array(7).fill(0);
         const returned = Array(7).fill(0);
         const overdue = Array(7).fill(0);
 
-        resActive.data.content.forEach((b) => {
-          const d = new Date(b.borrowDate);
+        resAll.data.content.forEach((b) => {
+          const d = new Date(b.borrow_date); // Use borrow_date from API
           borrowed[d.getDay() === 0 ? 6 : d.getDay() - 1]++;
-          if (b.returnDate) {
-            const rd = new Date(b.returnDate);
+          if (b.return_date) { // Use return_date from API
+            const rd = new Date(b.return_date);
             returned[rd.getDay() === 0 ? 6 : rd.getDay() - 1]++;
           }
-          if (b.isOverdue) {
-            const od = new Date(b.dueDate);
+          if (b.is_overdue) { // Use is_overdue from API
+            const od = new Date(b.due_date); // Use due_date from API
             overdue[od.getDay() === 0 ? 6 : od.getDay() - 1]++;
           }
         });
@@ -120,6 +134,9 @@ export default function Dashboard() {
     };
     fetchBorrows();
   }, []);
+
+
+
 
   // --------- Confirm modal + toast ---------
   const [confirm, setConfirm] = useState({ open: false, type: null, index: -1 });
@@ -139,15 +156,37 @@ export default function Dashboard() {
     if (!borrow?.id) return closeConfirm();
 
     try {
-      // ✅ CHANGED: call your backend approve/reject API (adjust if needed)
-      const url =
-        type === "accept"
-          ? `/admin-dashboard/borrows/${borrow.id}/approve`
-          : `/admin-dashboard/borrows/${borrow.id}/reject`;
+      const endpoint = type === "accept" ? "/borrow/accept" : "/borrow/reject";
+      
+      // Use the preserved IDs from normalizeBookData
+      const userId = borrow.userId;
+      const bookId = borrow.bookId;
+      
+      if (!userId || !bookId) {
+        alert("Missing user ID or book ID");
+        return closeConfirm();
+      }
 
-      await api.get(url);
+      await api.put(endpoint, null, {
+        params: {
+          userId: userId,
+          bookId: bookId
+        }
+      });
 
+      // Remove from borrow requests table
       setBorrowsRequests((prev) => prev.filter((_, i) => i !== index));
+      // Refresh recent borrows to show updated status
+      const response = await api.get("/borrow/list", {
+        params: { page: 0, size: 10 },
+      });
+      // Sort by created_at in descending order (newest first)
+      const sortedBorrows = (response.data.content || []).sort((a, b) => {
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+
+      setRecentBorrows(sortedBorrows);
+      
       showToast(type, type === "accept" ? "Request accepted" : "Request rejected");
     } catch (error) {
       console.error(`Error ${type} borrow request:`, error);
@@ -425,6 +464,45 @@ export default function Dashboard() {
       </main>
 
       {/* confirm modal + toast kept same as before... */}
+      {/* Confirmation Modal */}
+{confirm.open && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <h3 className="text-lg font-semibold mb-4">
+        {confirm.type === "accept" ? "Accept Request" : "Reject Request"}
+      </h3>
+      <p className="text-gray-600 mb-6">
+        Are you sure you want to {confirm.type} this borrow request?
+      </p>
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={closeConfirm}
+          className="px-4 py-2 text-gray-600 border rounded hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={doConfirm}
+          className={`px-4 py-2 text-white rounded ${
+            confirm.type === "accept" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+          }`}
+        >
+          {confirm.type === "accept" ? "Accept" : "Reject"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Toast */}
+{toast.show && (
+  <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
+    toast.type === "accept" ? "bg-green-500" : "bg-red-500"
+  }`}>
+    {toast.message}
+  </div>
+)}
+
     </div>
   );
   // -------- Small Stat Card Component --------
