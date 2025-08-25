@@ -27,6 +27,7 @@ import ManageFeature from './pages/ManageFeature/ManageFeature';
 import ProtectedRoute from "./routes/ProtectedRoute";
 import DashRouter from './routes/DashRouter';
 import UserDashboard from './pages/user/UserDashboard';
+import ManageDonationRequests from "./pages/ManageDonationRequests/ManageDonationRequests";
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
             <Route path="/setting" element={<AdminSettings />} />
             <Route path="/manage-feature" element={<ManageFeature />} />
             <Route path="/donation-request" element={<DonationRequest />} />
+            <Route path="/manage-donation-request" element={<ManageDonationRequests />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
           </Route>
 

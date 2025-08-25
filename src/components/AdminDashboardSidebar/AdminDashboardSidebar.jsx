@@ -1,19 +1,20 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   CalendarDays,
-  Upload,
-  Users,
   BookOpen,
   HelpCircle,
   LogOut,
   Layers,
+  HandHeart,
 } from "lucide-react";
 
 export default function AdminDashboardSidebar() {
   const location = useLocation();
 
-  const navItem = "flex items-center gap-2 px-3 py-3 text-gray-700 hover:text-sky-500 transition-colors";
-  const navItemActive = "flex items-center gap-2 px-3 py-3 text-sky-600 font-medium";
+  const navItem =
+    "flex items-center gap-2 px-3 py-3 text-gray-700 hover:text-sky-500 transition-colors";
+  const navItemActive =
+    "flex items-center gap-2 px-3 py-3 text-sky-600 font-medium";
 
   return (
     <aside className="w-64 bg-white shadow-md px-4 py-6 flex flex-col justify-between">
@@ -23,7 +24,9 @@ export default function AdminDashboardSidebar() {
           <li>
             <Link
               to="/dashboard"
-              className={location.pathname === "/dashboard" ? navItemActive : navItem}
+              className={
+                location.pathname === "/dashboard" ? navItemActive : navItem
+              }
             >
               <CalendarDays size={18} /> Dashboard
             </Link>
@@ -31,7 +34,9 @@ export default function AdminDashboardSidebar() {
           <li>
             <Link
               to="/manage-books"
-              className={location.pathname === "/manage-books" ? navItemActive : navItem}
+              className={
+                location.pathname === "/manage-books" ? navItemActive : navItem
+              }
             >
               <BookOpen size={18} /> Manage Books
             </Link>
@@ -39,35 +44,27 @@ export default function AdminDashboardSidebar() {
           <li>
             <Link
               to="/manage-category"
-              className={location.pathname === "/manage-category" ? navItemActive : navItem}
+              className={
+                location.pathname === "/manage-category"
+                  ? navItemActive
+                  : navItem
+              }
             >
               <Layers size={18} /> Manage Category
             </Link>
           </li>
-          {/* <li>
-            <Link
-              to="/upload"
-              className={location.pathname === "/upload" ? navItemActive : navItem}
-            >
-              <Upload size={18} /> Upload Books
-            </Link>
-          </li> */}
           <li>
             <Link
-              to="/members"
-              className={location.pathname === "/members" ? navItemActive : navItem}
+              to="/manage-donation-request"
+              className={
+                location.pathname === "/manage-donation-request"
+                  ? navItemActive
+                  : navItem
+              }
             >
-              <Users size={18} /> Member
+              <HandHeart size={18} /> Manage Donation Requests
             </Link>
-          </li> 
-          {/*<li>
-            <Link
-              to="/borrowed"
-              className={location.pathname === "/borrowed" ? navItemActive : navItem}
-            >
-              <BookOpen size={18} /> Check-out Books
-            </Link>
-          </li> */}
+          </li>
           <li>
             <Link
               to="/help"
