@@ -1,20 +1,31 @@
 // src/pages/admin/AdminSettings.jsx
 import { useEffect, useState } from "react";
 import {
-  Save,
   CheckCircle2,
-  AlertTriangle,
   Settings as SettingsIcon,
   CalendarDays,
   BookOpen,
 } from "lucide-react";
-import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
 import AdminDashboardSidebar from "../../components/AdminDashboardSidebar/AdminDashboardSidebar";
+import api from "../../api"; // <- use axios instance
 
-const LS_KEY = "adminSettings_limits_v1";
+const defaults = {
+  "borrow-day-limit": 14,
+  "borrow-extend-limit": 2,
+  "borrow-limit": 5,
+  "booking-days-limit": 7,
+};
 
-// Pretty row used for each setting
-function SettingRow({ icon, title, help, value, onChange, id }) {
+// Single row component with per-row save button
+function SettingRow({ icon, title, help, value, onChange, id, onSaveRow }) {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSaveRow(id, value);
+    setSaving(false);
+  };
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200">
       <div className="flex items-start sm:items-center gap-3">
@@ -25,8 +36,8 @@ function SettingRow({ icon, title, help, value, onChange, id }) {
         </div>
       </div>
 
-      <div className="sm:min-w-[220px]">
-        <div className="relative">
+      <div className="sm:min-w-[220px] flex gap-2 items-center">
+        <div className="relative flex-1">
           <input
             id={id}
             type="number"
@@ -40,70 +51,104 @@ function SettingRow({ icon, title, help, value, onChange, id }) {
             days
           </span>
         </div>
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className={`px-3 py-1 rounded-md text-sm font-medium text-white ${
+            saving ? "bg-gray-400" : "bg-sky-600 hover:bg-sky-500"
+          }`}
+        >
+          {saving ? "Saving..." : "Save"}
+        </button>
       </div>
     </div>
   );
 }
 
 export default function AdminSettings() {
-  useEffect(() => {
-    document.title = "Admin Settings";
-  }, []);
-
-  // Default values (you can change these if your backend wants other initial numbers)
-  const defaults = {
-    "borrow-day-limit": 14,
-    "borrow-extend-limit": 7,
-    "borrow-limit": 3,
-    "booking-duration": 2,
-    "booking-days-limit": 30,
-  };
-
-  // Load from localStorage
-  const [limits, setLimits] = useState(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      const saved = raw ? JSON.parse(raw) : {};
-      return { ...defaults, ...saved };
-    } catch {
-      return { ...defaults };
-    }
-  });
-
-  // Modal + Toast
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [limits, setLimits] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: "" });
 
-  const patch = (key, val) =>
-    setLimits((prev) => ({
-      ...prev,
-      [key]: val,
-    }));
+  useEffect(() => {
+    document.title = "Admin Settings";
+    fetchSettings();
+  }, []);
 
-  const onSave = () => setConfirmOpen(true);
+  const fetchSettings = async () => {
+    try {
+      const res = await api.get("/admin-settings");
+      const data = res.data;
+      setLimits({
+        "borrow-day-limit": data.borrow_day_limit,
+        "borrow-extend-limit": data.borrow_extend_limit,
+        "borrow-limit": data.borrow_book_limit,
+        "booking-days-limit": data.booking_days_limit,
+      });
+      console.log("Fetched settings:", data);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load settings.");
+    }
+  };
 
-  const doSave = () => {
-    // Persist locally
-    localStorage.setItem(LS_KEY, JSON.stringify(limits));
+  const patch = (key, val) => setLimits((prev) => ({ ...prev, [key]: val }));
 
-    // Prepare API payload using the EXACT hyphenated keys your backend expects
-    const payload = {
-      "borrow-day-limit": limits["borrow-day-limit"],
-      "borrow-extend-limit": limits["borrow-extend-limit"],
-      "borrow-limit": limits["borrow-limit"],
-      "booking-duration": limits["booking-duration"],
-      "booking-days-limit": limits["booking-days-limit"],
-    };
-
-    // Hook this up to your API call when ready:
-    // await fetch('/api/admin/settings/limits', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-
-    setConfirmOpen(false);
-    setToast({ show: true, msg: "Settings saved successfully." });
+  const showToast = (msg) => {
+    setToast({ show: true, msg });
     setTimeout(() => setToast({ show: false, msg: "" }), 1800);
   };
 
+  const onSaveRow = async (key, val) => {
+    try {
+      let endpoint = "";
+      switch (key) {
+        case "borrow-day-limit":
+          endpoint = "/borrow-day-limit";
+          break;
+        case "borrow-extend-limit":
+          endpoint = "/borrow-extend-limit";
+          break;
+        case "borrow-limit":
+          endpoint = "/borrow-book-limit";
+          break;
+        case "booking-days-limit":
+          endpoint = "/booking-days-limit";
+          break;
+        default:
+          throw new Error("Invalid key");
+      }
+
+      await api.post(endpoint, { value: val });
+      showToast(`${titleCase(key)} saved successfully.`);
+    } catch (err) {
+      console.error(err);
+      showToast(`Failed to save ${key}.`);
+    }
+  };
+
   const resetDefaults = () => setLimits({ ...defaults });
+
+  // const titleCase = (str) => {
+  //   return str
+  //     .split("-")
+  //     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+  //     .join(" ");
+  // };
+    const titleCase = (str) =>
+      str
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+
+    if (!limits) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p>Loading settings...</p>
+        </div>
+      );
+    }
 
   return (
     <div className="min-h-screen flex bg-gray-100">
@@ -116,25 +161,15 @@ export default function AdminSettings() {
             Admin Settings
           </h1>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={resetDefaults}
-              className="hidden sm:inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
-              Reset
-            </button>
-            <button
-              type="button"
-              onClick={onSave}
-              className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
-            >
-              <Save size={16} /> Save Changes
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={resetDefaults}
+            className="hidden sm:inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+          >
+            Reset
+          </button>
         </header>
 
-        {/* Limits card */}
         <section className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
           <div className="px-4 md:px-6 py-4 border-b border-gray-200 flex items-center gap-2">
             <CalendarDays size={18} className="text-gray-700" />
@@ -142,105 +177,22 @@ export default function AdminSettings() {
           </div>
 
           <div className="p-4 md:p-6 space-y-4">
-            <SettingRow
-              id="borrow-day-limit"
-              icon={<BookOpen size={18} />}
-              title="Borrow Day Limit"
-              help="Update borrow day limit"
-              value={limits["borrow-day-limit"]}
-              onChange={(v) => patch("borrow-day-limit", v)}
-            />
-
-            <SettingRow
-              id="borrow-extend-limit"
-              icon={<BookOpen size={18} />}
-              title="Borrow Extension Limit"
-              help="Update borrow extension limit"
-              value={limits["borrow-extend-limit"]}
-              onChange={(v) => patch("borrow-extend-limit", v)}
-            />
-
-            <SettingRow
-              id="borrow-limit"
-              icon={<BookOpen size={18} />}
-              title="Max Borrow Limit"
-              help="Update max borrow limit (how many books a user can borrow at once)"
-              value={limits["borrow-limit"]}
-              onChange={(v) => patch("borrow-limit", v)}
-            />
-
-            <SettingRow
-              id="booking-duration"
-              icon={<CalendarDays size={18} />}
-              title="Max Booking Duration"
-              help="Update max booking duration"
-              value={limits["booking-duration"]}
-              onChange={(v) => patch("booking-duration", v)}
-            />
-
-            <SettingRow
-              id="booking-days-limit"
-              icon={<CalendarDays size={18} />}
-              title="Booking Days Limit"
-              help="Update booking days limit"
-              value={limits["booking-days-limit"]}
-              onChange={(v) => patch("booking-days-limit", v)}
-            />
+            {Object.entries(limits).map(([key, value]) => (
+              <SettingRow
+                key={key}
+                id={key}
+                icon={key.includes("borrow") ? <BookOpen size={18} /> : <CalendarDays size={18} />}
+                title={titleCase(key)}
+                help={`Update ${titleCase(key)}`}
+                value={value}
+                onChange={(v) => patch(key, v)}
+                onSaveRow={onSaveRow}
+              />
+            ))}
           </div>
         </section>
       </main>
 
-      {/* Save confirmation modal */}
-      {confirmOpen && (
-        <div
-          className="fixed inset-0 z-50"
-          aria-modal="true"
-          role="dialog"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setConfirmOpen(false);
-          }}
-        >
-          <div className="absolute inset-0 bg-black/50 opacity-0 animate-[fadeIn_.2s_ease-out_forwards]" />
-          <div className="absolute inset-0 flex items-center justify-center px-4">
-            <div className="w-full max-w-md rounded-lg bg-white shadow-lg border border-gray-200 opacity-0 translate-y-2 animate-[popIn_.22s_ease-out_forwards]">
-              <div className="px-6 py-5">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5">
-                    <AlertTriangle className="text-amber-500" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Apply these changes?
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-600">
-                      Limits will update for all users immediately after saving.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 py-4 bg-white border-t border-gray-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setConfirmOpen(false)}
-                  className="rounded-md px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={doSave}
-                  className="rounded-md px-5 py-2 text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 focus:ring-2 focus:ring-sky-400"
-                >
-                  Confirm & Save
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success toast */}
       {toast.show && (
         <div className="fixed bottom-6 right-6 z-[60] pointer-events-none animate-[toastIn_.25s_ease-out]">
           <div className="pointer-events-auto flex items-start gap-3 rounded-xl bg-white shadow-lg ring-1 ring-black/5 px-4 py-3">
@@ -255,10 +207,7 @@ export default function AdminSettings() {
         </div>
       )}
 
-      {/* animations */}
       <style>{`
-        @keyframes fadeIn { to { opacity: 1 } }
-        @keyframes popIn { to { opacity: 1; transform: translateY(0) } }
         @keyframes toastIn {
           from { opacity: 0; transform: translateY(8px) scale(.98) }
           to   { opacity: 1; transform: translateY(0) scale(1) }

@@ -7,18 +7,6 @@ import axios from "axios";
 
 // ---- AUTO LOGIN ----
 
-
-// const DEV_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiVVNFUiIsInVzZXJJZCI6NiwiZW1haWwiOiJ0ZXN0dXNlMXJAZXhhbXBsZS5jb20iLCJzdWIiOiJ0ZXN0dXNlcjEiLCJpc3MiOiJMaWJyYXJ5TWFuYWdlbWVudFN5c3RlbSIsImF1ZCI6IkxpYnJhcnlVc2VycyIsImlhdCI6MTc1NTc3MzMxMSwiZXhwIjoxNzU1Nzc2OTExfQ.Y0do5igFh9M0j-ehxD_W_MxpLCnHnttbRUgfH4Y1InY";
-
-// if (!localStorage.getItem("token")) {
-//   localStorage.setItem("token", DEV_TOKEN);
-
-//   const decoded = jwtDecode.default(DEV_TOKEN); // ✅ use .default
-//   console.log("Decoded user:", decoded);
-//   localStorage.setItem("user", JSON.stringify(decoded));
-// }
-// ---------------------
-
 // DEV AUTO LOGIN
 const DEV_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiQURNSU4iLCJ1c2VySWQiOjQsImVtYWlsIjoiY2hhcmxpZS53aWxzb25AZW1haWwuY29tIiwic3ViIjoiYWRtaW4iLCJpc3MiOiJMaWJyYXJ5TWFuYWdlbWVudFN5c3RlbSIsImF1ZCI6IkxpYnJhcnlVc2VycyIsImlhdCI6MTc1NjEyODEwNywiZXhwIjoxNzU2MTMxNzA3fQ.iZNGIiuwbMyLt4GJ5AmSMdyVgbP3Uq0YoziAVt19hIc";
 const decoded = jwtDecode.default(DEV_TOKEN);
