@@ -258,11 +258,17 @@ export default function ManageBooks() {
   const confirmDelete = async () => {
     if (!pendingDeleteId) return;
     try {
-      await axios.delete(`${API_BASE_URL}/book/delete/${pendingDeleteId}`);
+      await axios.delete(`${API_BASE_URL}/book/delete/${pendingDeleteId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
       await fetchBooks();
       setConfirmOpen(false);
     } catch (err) {
-      alert(`Error deleting book: ${err.response?.data?.message || err.message}`);
+      if (err.response?.status === 403) {
+        alert("You do not have permission to delete this book. Admin access required.");
+      } else {
+        alert(`Error deleting book: ${err.response?.data?.message || err.message}`);
+      }
     }
   };
 

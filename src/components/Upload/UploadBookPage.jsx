@@ -1,438 +1,223 @@
-// UploadBookPage.jsx
-import { useState } from "react";
-import {
-  CalendarDays,
-  Upload,
-  Users,
-  BookOpen,
-  HelpCircle,
-  LogOut,
-  Image as ImageIcon,
-  FileText,
-  FileAudio,
-  Loader2,
-  CheckCircle2,
-  PartyPopper,
-  X,
-} from "lucide-react";
+// src/pages/AddBook/AddBook.jsx
+import { useState, useEffect } from "react";
+import { Loader2, CheckCircle2, X } from "lucide-react";
+import api from "../../api";
+import AdminDashboardSidebar from "../../components/AdminDashboardSidebar/AdminDashboardSidebar";
 
-export default function UploadBookPage() {
-  const [bookData, setBookData] = useState({
-    title: "",
+export default function AddBook() {
+  const [form, setForm] = useState({
+    name: "",
     author: "",
-    mainCategory: "",
-    quantity: "",
-    description: "",
+    about: "",
+    short_details: "",
+    isbn: "",
+    format: "HARD_COPY",
+    categoryId: "",
+    total_copies: "",
+    available_copies: "",
+    publication_year: "",
+    book_cover_url: "",
+    pdf_file_url: "",
+    audio_file_url: "",
   });
 
-  // Upload states
-  const [coverPreview, setCoverPreview] = useState(null);
-  const [pdfSelected, setPdfSelected] = useState(false);
-  const [audioSelected, setAudioSelected] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
 
-  const [loadingCover, setLoadingCover] = useState(false);
-  const [loadingPDF, setLoadingPDF] = useState(false);
-  const [loadingAudio, setLoadingAudio] = useState(false);
-
-  const [files, setFiles] = useState({
-    cover: null,
-    pdf: null,
-    audio: null,
-  });
-
-  // Success Popup
-  const [showSuccess, setShowSuccess] = useState(false);
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await api.get("/category/list");
+        setCategories(res.data);
+      } catch (err) {
+        console.error("Failed to fetch categories", err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setBookData((prev) => ({ ...prev, [name]: value }));
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const simulateDelay = (ms = 3000) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
-
-  const handleCoverUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLoadingCover(true);
-    setFiles((prev) => ({ ...prev, cover: file }));
-    await simulateDelay(3000);
-    const url = URL.createObjectURL(file);
-    setCoverPreview(url);
-    setLoadingCover(false);
-  };
-
-  const handlePDFUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLoadingPDF(true);
-    setFiles((prev) => ({ ...prev, pdf: file }));
-    await simulateDelay(3000);
-    setPdfSelected(true);
-    setLoadingPDF(false);
-  };
-
-  const handleAudioUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLoadingAudio(true);
-    setFiles((prev) => ({ ...prev, audio: file }));
-    await simulateDelay(3000);
-    setAudioSelected(true);
-    setLoadingAudio(false);
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      ...bookData,
-      hasCoverImage: !!files.cover,
-      hasPDF: !!files.pdf,
-      hasAudio: !!files.audio,
-    };
-    console.log("Book submitted:", payload, files);
+    setLoading(true);
+    setMessage(null);
 
-    // Show animated success popup
-    setShowSuccess(true);
-
-    // Auto-close after 2.5s
-    setTimeout(() => setShowSuccess(false), 2500);
+    try {
+      const res = await api.post("/book/create", {
+        ...form,
+        total_copies: parseInt(form.total_copies),
+        available_copies: parseInt(form.available_copies),
+        categoryId: form.categoryId ? parseInt(form.categoryId) : null,
+      });
+      setMessage({ type: "success", text: "Book added successfully ✅" });
+      setForm({
+        name: "",
+        author: "",
+        about: "",
+        short_details: "",
+        isbn: "",
+        format: "HARD_COPY",
+        categoryId: "",
+        total_copies: "",
+        available_copies: "",
+        publication_year: "",
+        book_cover_url: "",
+        pdf_file_url: "",
+        audio_file_url: "",
+      });
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Failed to add book ❌",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-md px-4 py-6 flex flex-col justify-between">
-        <div>
-          <h2 className="text-xl font-bold mb-6">Library</h2>
-          <ul className="space-y-3">
-            <li>
-              <a
-                href="/dashboard"
-                className="flex items-center gap-2 text-gray-700 hover:text-sky-500"
-              >
-                <CalendarDays size={18} /> Dashboard
-              </a>
-            </li>
-            <li>
-              <a
-                href="/upload"
-                className="flex items-center gap-2 text-sky-600 font-medium"
-              >
-                <Upload size={18} /> Upload Books
-              </a>
-            </li>
-            <li>
-              <a
-                href="/fillup-form"
-                className="flex items-center gap-2 text-gray-700 hover:text-sky-500"
-              >
-                <BookOpen size={18} /> Fill Up Form
-              </a>
-            </li>
-            <li>
-              <a
-                href="/members"
-                className="flex items-center gap-2 text-gray-700 hover:text-sky-500"
-              >
-                <Users size={18} /> Member
-              </a>
-            </li>
-            <li>
-              <a
-                href="/checkout"
-                className="flex items-center gap-2 text-gray-700 hover:text-sky-500"
-              >
-                <BookOpen size={18} /> Check-out Books
-              </a>
-            </li>
-            <li>
-              <a
-                href="/help"
-                className="flex items-center gap-2 text-gray-700 hover:text-sky-500"
-              >
-                <HelpCircle size={18} /> Help
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <a
-            href="/logout"
-            className="flex items-center gap-2 text-red-600 font-medium"
-          >
-            <LogOut size={18} /> Logout
-          </a>
-        </div>
-      </aside>
+    <div className="flex">
+      <AdminDashboardSidebar />
+      <div className="flex-1 p-6">
+        <h1 className="text-2xl font-semibold mb-4">Add New Book</h1>
 
-      {/* Main Content */}
-      <main className="flex-1 p-10">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Add New Book</h1>
-        <p className="text-sm text-gray-500 mb-8">
-          Fill in the details below to add a new book to the library database.
-        </p>
-
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* LEFT SECTION */}
-            <div className="space-y-4">
-              <input
-                type="text"
-                name="title"
-                placeholder="Book Title"
-                value={bookData.title}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded bg-gray-100"
-              />
-
-              {/* Changed to input field */}
-              <input
-                type="text"
-                name="mainCategory"
-                placeholder="Category / Genre"
-                value={bookData.mainCategory}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded bg-gray-100"
-              />
-
-              <input
-                type="number"
-                name="quantity"
-                placeholder="Quantity Available"
-                value={bookData.quantity}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded bg-gray-100"
-              />
-
-              <textarea
-                name="description"
-                rows="4"
-                placeholder="Description (Optional)"
-                value={bookData.description}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded bg-gray-100"
-              />
-            </div>
-
-            {/* RIGHT SECTION */}
-            <div className="space-y-4">
-              <input
-                type="text"
-                name="author"
-                placeholder="Author Name"
-                value={bookData.author}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded bg-gray-100"
-              />
-
-              {/* Cover Image Upload */}
-              <div className="bg-gray-100 border rounded px-4 py-6 text-center space-y-3">
-                <p className="text-sm text-gray-700 font-medium">
-                  Cover image upload
-                </p>
-
-                {!coverPreview && !loadingCover && (
-                  <p className="text-sm text-gray-600">
-                    Drag & Drop or{" "}
-                    <label className="text-sky-600 underline cursor-pointer">
-                      Choose image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </p>
-                )}
-
-                {loadingCover && (
-                  <div className="flex items-center justify-center gap-2 text-gray-600">
-                    <Loader2 className="animate-spin" size={18} />
-                    <span className="text-sm">Uploading cover…</span>
-                  </div>
-                )}
-
-                {coverPreview && !loadingCover && (
-                  <div className="flex flex-col items-center gap-2">
-                    <img
-                      src={coverPreview}
-                      alt="Cover preview"
-                      className="w-28 h-36 object-cover rounded shadow"
-                    />
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <ImageIcon size={18} />
-                      <span className="text-sm">Image uploaded</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* PDF File Upload */}
-              <div className="bg-gray-100 border rounded px-4 py-6 text-center space-y-3">
-                <p className="text-sm text-gray-700 font-medium">PDF file upload</p>
-
-                {!pdfSelected && !loadingPDF && (
-                  <p className="text-sm text-gray-600">
-                    Drag & Drop or{" "}
-                    <label className="text-sky-600 underline cursor-pointer">
-                      Choose PDF
-                      <input
-                        type="file"
-                        accept="application/pdf"
-                        onChange={handlePDFUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </p>
-                )}
-
-                {loadingPDF && (
-                  <div className="flex items-center justify-center gap-2 text-gray-600">
-                    <Loader2 className="animate-spin" size={18} />
-                    <span className="text-sm">Uploading PDF…</span>
-                  </div>
-                )}
-
-                {pdfSelected && !loadingPDF && (
-                  <div className="flex flex-col items-center gap-2 text-gray-700">
-                    <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
-                      <FileText className="text-red-500" size={28} />
-                    </span>
-                    <span className="text-sm font-medium text-red-600">
-                      PDF uploaded
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Audio Clip Upload */}
-              <div className="bg-gray-100 border rounded px-4 py-6 text-center space-y-3">
-                <p className="text-sm text-gray-700 font-medium">
-                  Audio clip upload
-                </p>
-
-                {!audioSelected && !loadingAudio && (
-                  <p className="text-sm text-gray-600">
-                    Drag & Drop or{" "}
-                    <label className="text-sky-600 underline cursor-pointer">
-                      Choose audio
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        onChange={handleAudioUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </p>
-                )}
-
-                {loadingAudio && (
-                  <div className="flex items-center justify-center gap-2 text-gray-600">
-                    <Loader2 className="animate-spin" size={18} />
-                    <span className="text-sm">Uploading audio…</span>
-                  </div>
-                )}
-
-                {audioSelected && !loadingAudio && (
-                  <div className="flex flex-col items-center gap-2 text-gray-700">
-                    <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100">
-                      <FileAudio className="text-indigo-600" size={28} />
-                    </span>
-                    <span className="text-sm font-medium text-indigo-700">
-                      Audio uploaded
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between gap-4 mt-4">
-                <button
-                  type="button"
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded"
-                  onClick={() => {
-                    // Reset form and uploads
-                    setBookData({
-                      title: "",
-                      author: "",
-                      mainCategory: "",
-                      quantity: "",
-                      description: "",
-                    });
-                    setFiles({ cover: null, pdf: null, audio: null });
-                    setCoverPreview(null);
-                    setPdfSelected(false);
-                    setAudioSelected(false);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded"
-                >
-                  Confirm Book
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
-      </main>
-
-      {/* Animated Success Popup */}
-      {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/40 animate-fade-in" />
-
-          {/* Card */}
+        {message && (
           <div
-            className="
-              relative z-10 w-[90%] max-w-md rounded-2xl bg-white shadow-xl
-              px-6 py-8 text-center
-              transition-all duration-300 ease-out
-              opacity-100 scale-100
-              animate-[pop_0.28s_ease-out]
-            "
+            className={`p-3 mb-4 rounded-lg flex items-center gap-2 ${
+              message.type === "success"
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
           >
-            <button
-              className="absolute right-3 top-3 p-1 rounded-full hover:bg-gray-100"
-              onClick={() => setShowSuccess(false)}
-              aria-label="Close"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="mx-auto mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100">
-              <CheckCircle2 className="text-emerald-600" size={36} />
-            </div>
-
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center justify-center gap-2">
-              Book Uploaded Successfully
-              <PartyPopper className="text-amber-500 animate-bounce" size={20} />
-            </h3>
-            <p className="text-sm text-gray-600 mt-2">
-              Your book information and files have been recorded.
-            </p>
+            {message.type === "success" ? <CheckCircle2 /> : <X />}
+            {message.text}
           </div>
+        )}
 
-          {/* Tiny CSS keyframes via style tag for pop + backdrop fade */}
-          <style>{`
-            @keyframes pop {
-              0% { transform: scale(0.9); opacity: 0; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-            .animate-fade-in {
-              animation: fade-in 0.25s ease-out forwards;
-            }
-            @keyframes fade-in {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-          `}</style>
-        </div>
-      )}
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          <input
+            type="text"
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            placeholder="Book Name"
+            className="border p-2 rounded"
+            required
+          />
+          <input
+            type="text"
+            name="author"
+            value={form.author}
+            onChange={handleChange}
+            placeholder="Author"
+            className="border p-2 rounded"
+            required
+          />
+          <input
+            type="text"
+            name="isbn"
+            value={form.isbn}
+            onChange={handleChange}
+            placeholder="ISBN"
+            className="border p-2 rounded"
+          />
+          <input
+            type="number"
+            name="publication_year"
+            value={form.publication_year}
+            onChange={handleChange}
+            placeholder="Publication Year"
+            className="border p-2 rounded"
+          />
+          <input
+            type="number"
+            name="total_copies"
+            value={form.total_copies}
+            onChange={handleChange}
+            placeholder="Total Copies"
+            className="border p-2 rounded"
+          />
+          <input
+            type="number"
+            name="available_copies"
+            value={form.available_copies}
+            onChange={handleChange}
+            placeholder="Available Copies"
+            className="border p-2 rounded"
+          />
+          <textarea
+            name="short_details"
+            value={form.short_details}
+            onChange={handleChange}
+            placeholder="Short Details"
+            className="border p-2 rounded md:col-span-2"
+          />
+          <textarea
+            name="about"
+            value={form.about}
+            onChange={handleChange}
+            placeholder="About"
+            className="border p-2 rounded md:col-span-2"
+          />
+
+          {/* Category Dropdown */}
+          <select
+            name="categoryId"
+            value={form.categoryId}
+            onChange={handleChange}
+            className="border p-2 rounded md:col-span-2"
+          >
+            <option value="">Select Category</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Links */}
+          <input
+            type="text"
+            name="book_cover_url"
+            value={form.book_cover_url}
+            onChange={handleChange}
+            placeholder="Cover Image Link"
+            className="border p-2 rounded md:col-span-2"
+          />
+          <input
+            type="text"
+            name="pdf_file_url"
+            value={form.pdf_file_url}
+            onChange={handleChange}
+            placeholder="PDF File Link"
+            className="border p-2 rounded md:col-span-2"
+          />
+          <input
+            type="text"
+            name="audio_file_url"
+            value={form.audio_file_url}
+            onChange={handleChange}
+            placeholder="Audio File Link"
+            className="border p-2 rounded md:col-span-2"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded flex items-center justify-center gap-2 md:col-span-2"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : "Add Book"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

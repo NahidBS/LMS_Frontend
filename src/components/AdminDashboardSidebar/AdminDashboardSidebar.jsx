@@ -23,9 +23,9 @@ export default function AdminDashboardSidebar() {
         <ul className="space-y-2">
           <li>
             <Link
-              to="/dashboard"
+              to="/admin/dashboard"
               className={
-                location.pathname === "/dashboard" ? navItemActive : navItem
+                location.pathname === "/admin/dashboard" ? navItemActive : navItem
               }
             >
               <CalendarDays size={18} /> Dashboard
