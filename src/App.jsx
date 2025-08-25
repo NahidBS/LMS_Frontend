@@ -92,6 +92,7 @@ function App() {
             <Route path="/admin/manage-books" element={<ManageBooks />} />
             <Route path="/admin/manage-category" element={<ManageCategory />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/upload" element={<UploadBookPage />} />
           </Route>
 
           {/* User-only routes */}
