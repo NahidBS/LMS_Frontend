@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../api";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
+import AdminDashboardSidebar from "../../components/AdminDashboardSidebar/AdminDashboardSidebar";
 
 function StatusPill({ status }) {
   const on = status?.toLowerCase() === "enable";
@@ -25,7 +25,7 @@ export default function ManageCategory() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editFormData, setEditFormData] = useState({
     name: "",
-    description: ""
+    description: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,6 +33,10 @@ export default function ManageCategory() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
   const [isAdding, setIsAdding] = useState(false);
+
+  // ✅ Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5; // change this if you want more rows per page
 
   useEffect(() => {
     document.title = "Manage Category";
@@ -64,9 +68,9 @@ export default function ManageCategory() {
         fetchCategories();
       } catch (err) {
         console.error("Error deleting category:", err);
-        // alert("Failed to delete category. Please try again.");
         const msg =
-        err.response?.data?.message || "Failed to delete category. Please try again.";
+          err.response?.data?.message ||
+          "Failed to delete category. Please try again.";
         alert(msg);
       }
     }
@@ -76,45 +80,48 @@ export default function ManageCategory() {
     setEditingCategory(category);
     setEditFormData({
       name: category.name,
-      description: category.description || ""
+      description: category.description || "",
     });
   };
 
   const handleEditFormChange = (e) => {
     const { name, value } = e.target;
-    setEditFormData(prev => ({
+    setEditFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       const response = await api.put(
         `category/edit/${editingCategory.id}`,
         editFormData
       );
-      
+
       if (response.data) {
-        // Update the category in the list
-        setCategories(categories.map(cat => 
-          cat.id === editingCategory.id ? response.data : cat
-        ));
+        setCategories(
+          categories.map((cat) =>
+            cat.id === editingCategory.id ? response.data : cat
+          )
+        );
         setEditingCategory(null);
         alert("Category updated successfully!");
       }
     } catch (err) {
       console.error("Error updating category:", err);
-      alert(err.response?.data?.message || "Failed to update category. Please try again.");
+      alert(
+        err.response?.data?.message ||
+          "Failed to update category. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle form change + submit:
   const handleAddFormChange = (e) => {
     const { name, value } = e.target;
     setNewCategory((prev) => ({ ...prev, [name]: value }));
@@ -126,7 +133,7 @@ export default function ManageCategory() {
     try {
       const response = await api.post("/category/create", newCategory);
       if (response.data) {
-        setCategories([...categories, response.data]); // append new
+        setCategories([...categories, response.data]);
         setIsAddModalOpen(false);
         setNewCategory({ name: "", description: "" });
         alert("Category created successfully!");
@@ -139,10 +146,17 @@ export default function ManageCategory() {
     }
   };
 
+  // ✅ Pagination calculations
+  const totalPages = Math.ceil(categories.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = categories.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   return (
     <div className="min-h-screen flex bg-gray-100">
-      <Sidebar activePage="manage-category" />
+      <AdminDashboardSidebar />
 
       <main className="flex-1 p-6 space-y-6 overflow-auto">
         <div className="flex items-center justify-between">
@@ -155,7 +169,6 @@ export default function ManageCategory() {
           >
             <Plus size={16} /> Add Category
           </button>
-
         </div>
 
         {loading && (
@@ -164,7 +177,7 @@ export default function ManageCategory() {
             <p className="mt-2">Loading categories...</p>
           </div>
         )}
-        
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
             {error}
@@ -181,19 +194,19 @@ export default function ManageCategory() {
                     <th className="py-3 px-4 min-w-[220px]">Category</th>
                     <th className="py-3 px-4 min-w-[220px]">Description</th>
                     <th className="py-3 px-4 min-w-[120px]">Books</th>
-                    {/* <th className="py-3 px-4 min-w-[140px]">Created At</th>
-                    <th className="py-3 px-4 min-w-[140px]">Status</th> */}
                     <th className="py-3 px-4 min-w-[160px]">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {categories.length > 0 ? (
-                    categories.map((category, idx) => (
+                  {currentItems.length > 0 ? (
+                    currentItems.map((category, idx) => (
                       <tr
                         key={category.id}
                         className="border-b last:border-0 even:bg-gray-50 hover:bg-gray-50"
                       >
-                        <td className="py-3 px-4 text-gray-700">{idx + 1}</td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {startIndex + idx + 1}
+                        </td>
                         <td className="py-3 px-4 text-gray-800 font-medium">
                           {category.name}
                         </td>
@@ -203,12 +216,6 @@ export default function ManageCategory() {
                         <td className="py-3 px-4 text-gray-700">
                           {category.book_count || category.bookCount || 0}
                         </td>
-                        {/* <td className="py-3 px-4 text-gray-700">
-                          {new Date(category.created_at || category.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <StatusPill status="Enable" />
-                        </td> */}
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <button
@@ -229,7 +236,10 @@ export default function ManageCategory() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="py-4 text-center text-gray-500">
+                      <td
+                        colSpan="7"
+                        className="py-4 text-center text-gray-500"
+                      >
                         No categories found
                       </td>
                     </tr>
@@ -238,154 +248,30 @@ export default function ManageCategory() {
               </table>
             </div>
 
-            <div className="px-4 py-3 text-xs text-gray-500 md:hidden border-t">
-              Tip: swipe horizontally to see all columns.
-            </div>
-          </div>
-        )}
-
-        {/* Add Category Modal */}
-        {isAddModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-              <div className="flex items-center justify-between border-b p-4">
-                <h2 className="text-lg font-semibold">Add Category</h2>
+            {/* ✅ Pagination controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center px-4 py-3 border-t">
                 <button
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  className="px-3 py-1 text-sm rounded-md bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
                 >
-                  <X size={20} />
+                  Prev
+                </button>
+                <span className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(p + 1, totalPages))
+                  }
+                  className="px-3 py-1 text-sm rounded-md bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Next
                 </button>
               </div>
-
-              <form onSubmit={handleAddSubmit} className="p-4">
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="add-name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Category Name *
-                    </label>
-                    <input
-                      type="text"
-                      id="add-name"
-                      name="name"
-                      value={newCategory.name}
-                      onChange={handleAddFormChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="add-description" className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      id="add-description"
-                      name="description"
-                      value={newCategory.description}
-                      onChange={handleAddFormChange}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddModalOpen(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isAdding}
-                    className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50"
-                  >
-                    {isAdding ? "Adding..." : "Add Category"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-
-        {/* Edit Category Modal */}
-        {editingCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95">
-           <div className="flex items-center justify-between border-b p-4">
-                <h2 className="text-lg font-semibold">Edit Category</h2>
-                <button
-                  onClick={() => setEditingCategory(null)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              
-              <form onSubmit={handleEditSubmit} className="p-4">
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Category Name *
-                    </label>
-                    <input
-                      type="text"
-                      id="edit-name"
-                      name="name"
-                      value={editFormData.name}
-                      onChange={handleEditFormChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="edit-description" className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      id="edit-description"
-                      name="description"
-                      value={editFormData.description}
-                      onChange={handleEditFormChange}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setEditingCategory(null)}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Updating...
-                      </>
-                    ) : (
-                      "Update Category"
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
+            )}
           </div>
         )}
       </main>

@@ -4,7 +4,7 @@ import {
   BookOpen,
   Layers,
   HandHeart,
-  Settings, // <-- add this icon
+  Settings,
   LogOut,
 } from "lucide-react";
 
@@ -45,9 +45,7 @@ export default function AdminDashboardSidebar() {
             <Link
               to="/manage-category"
               className={
-                location.pathname === "/manage-category"
-                  ? navItemActive
-                  : navItem
+                location.pathname === "/manage-category" ? navItemActive : navItem
               }
             >
               <Layers size={18} /> Manage Category
@@ -65,7 +63,16 @@ export default function AdminDashboardSidebar() {
               <HandHeart size={18} /> Manage Donation Requests
             </Link>
           </li>
-          {/* Updated link */}
+          <li>
+            <Link
+              to="/manage-feature"
+              className={
+                location.pathname === "/manage-feature" ? navItemActive : navItem
+              }
+            >
+              <Layers size={18} /> Manage Feature
+            </Link>
+          </li>
           <li>
             <Link
               to="/admin/settings"

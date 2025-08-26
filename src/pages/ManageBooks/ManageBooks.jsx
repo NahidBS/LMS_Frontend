@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   Search,
 } from "lucide-react";
-import Sidebar from "../../components/DashboardSidebar/DashboardSidebar";
+import AdminDashboardSidebar from "../../components/AdminDashboardSidebar/AdminDashboardSidebar";
 
 const API_BASE_URL = 'http://localhost:8080/api';
 const PLACEHOLDER_IMG = "https://dummyimage.com/80x80/e5e7eb/9ca3af&text=📘";
@@ -302,7 +302,7 @@ export default function ManageBooks() {
 
   return (
     <div className="min-h-screen flex bg-gray-100">
-       <Sidebar activePage="manage-books" />
+       <AdminDashboardSidebar />
       <main className="flex-1 p-6 space-y-6">
         <h1 className="text-xl md:text-2xl font-bold text-gray-800">Manage Books</h1>
 

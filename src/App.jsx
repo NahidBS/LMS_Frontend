@@ -105,7 +105,7 @@ function App() {
             <Route path="/user/manage-books" element={<ManageBooks />} />
             <Route path="/user/manage-category" element={<ManageCategory />} />
             <Route path="/user/settings" element={<UserSettings />} />
-            <Route path="/upload" element={<UploadBookPage />} />
+            <Route path="//upload" element={<UploadBookPage />} />
             <Route path="/history" element={<UserHistory />} />
 
           </Route>

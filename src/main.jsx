@@ -8,7 +8,7 @@ import axios from "axios";
 // ---- AUTO LOGIN ----
 
 // DEV AUTO LOGIN
-const DEV_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiQURNSU4iLCJ1c2VySWQiOjQsImVtYWlsIjoiY2hhcmxpZS53aWxzb25AZW1haWwuY29tIiwic3ViIjoiYWRtaW4iLCJpc3MiOiJMaWJyYXJ5TWFuYWdlbWVudFN5c3RlbSIsImF1ZCI6IkxpYnJhcnlVc2VycyIsImlhdCI6MTc1NjIwMDk4OSwiZXhwIjoxNzU2MjA0NTg5fQ.s0eK8jso4ZNB4jfiPJi7UUh0ePuoLhKfRPk8PRqIlWo";
+const DEV_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiQURNSU4iLCJ1c2VySWQiOjQsImVtYWlsIjoiY2hhcmxpZS53aWxzb25AZW1haWwuY29tIiwic3ViIjoiYWRtaW4iLCJpc3MiOiJMaWJyYXJ5TWFuYWdlbWVudFN5c3RlbSIsImF1ZCI6IkxpYnJhcnlVc2VycyIsImlhdCI6MTc1NjIxMzI0NiwiZXhwIjoxNzU2MjE2ODQ2fQ._b7Z7KGzvFdDUMaeWp4vWghAbbnG_TEnTXicbMCvIj8";
 const decoded = jwtDecode.default(DEV_TOKEN);
 localStorage.setItem("token", DEV_TOKEN);
 localStorage.setItem("user", JSON.stringify(decoded));
