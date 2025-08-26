@@ -143,23 +143,23 @@ export default function UserDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="bg-white rounded shadow p-4 text-center">
             <p className="text-sm text-gray-500">Total Borrowed</p>
-            <p className="text-xl font-bold text-gray-800">{statistics.total_borrowed_books ?? 0}</p>
+            <p className="text-xl font-bold text-gray-800">{statistics.totalBorrowed ?? 0}</p>
           </div>
           <div className="bg-white rounded shadow p-4 text-center">
             <p className="text-sm text-gray-500">Overdue</p>
-            <p className="text-xl font-bold text-red-600">{statistics.total_overdue_books ?? 0}</p>
+            <p className="text-xl font-bold text-red-600">{statistics.overdueBooks ?? 0}</p>
           </div>
           <div className="bg-white rounded shadow p-4 text-center">
             <p className="text-sm text-gray-500">Returned</p>
-            <p className="text-xl font-bold text-gray-800">{statistics.total_returned_books ?? 0}</p>
+            <p className="text-xl font-bold text-gray-800">{statistics.returnedBooks ?? 0}</p>
           </div>
           <div className="bg-white rounded shadow p-4 text-center">
             <p className="text-sm text-gray-500">Total Request</p>
-            <p className="text-xl font-bold text-gray-800">{statistics.total_borrow_requests ?? 0}</p>
+            <p className="text-xl font-bold text-gray-800">{statistics.totalRequest ?? 0}</p>
           </div>
           <div className="bg-white rounded shadow p-4 text-center">
             <p className="text-sm text-gray-500">Total Reject</p>
-            <p className="text-xl font-bold text-red-600">{statistics.total_borrow_rejected ?? 0}</p>
+            <p className="text-xl font-bold text-red-600">{statistics.totalReject ?? 0}</p>
           </div>
         </div>
 
