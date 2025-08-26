@@ -40,7 +40,7 @@ export default function Dashboard() {
           current_total_books: new Set(borrows.map(b => b.book?.id)).size, // fallback
           new_members: new Set(borrows.map(b => b.user?.id)).size, // fallback if no /user API
           pending_borrows: borrows.filter(b => b.status === "PENDING").length,
-          total_borrow_requests: borrows.length,
+          total_borrow_requests: borrows.filter(b => b.status === "REQUESTED").length,
           total_borrow_rejected: borrows.filter(b => b.status === "REJECTED").length,
         };
 
@@ -202,7 +202,7 @@ export default function Dashboard() {
     () => [
       { name: "Borrowed", color: "stroke-sky-500", dot: "fill-sky-500", values: weeklyData.borrowed },
       { name: "Returned", color: "stroke-amber-500", dot: "fill-amber-400", values: weeklyData.returned },
-      { name: "Overdue", color: "stroke-rose-500", dot: "fill-rose-500", values: weeklyData.overdue },
+      { name: "Overdue", color: "stroke-red-500", dot: "fill-red-500", values: weeklyData.overdue },
     ],
     [weeklyData]
   );
@@ -281,18 +281,64 @@ export default function Dashboard() {
         {/* Chart + overdue */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* chart */}
+
+          {/* ---------------------- CHECK-OUT STATISTICS (Weekly Line Chart; legend BELOW) ---------------------- */}
           <div className="bg-white rounded shadow p-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold mb-2">Check-Out Statistics</h3>
               <span className="text-xs text-gray-500">Updated {hh}:{mm}:{ss}</span>
             </div>
+
+            {/* Chart centered */}
             <div className="w-full flex justify-center">
               <svg
                 viewBox={`0 0 ${chartBox.w} ${chartBox.h}`}
                 width="100%"
                 height="220"
                 className="max-w-full"
+                aria-label="Weekly Dynamics Line Chart"
               >
+                {/* grid lines */}
+                {[0, 0.25, 0.5, 0.75, 1].map((t, i) => {
+                  const y = chartBox.padY + t * (chartBox.h - chartBox.padY * 2);
+                  return (
+                    <line
+                      key={i}
+                      x1={chartBox.padX}
+                      x2={chartBox.w - chartBox.padX}
+                      y1={y}
+                      y2={y}
+                      className="stroke-gray-200"
+                      strokeWidth="1"
+                    />
+                  );
+                })}
+
+                {/* baseline */}
+                <line
+                  x1={chartBox.padX}
+                  x2={chartBox.w - chartBox.padX}
+                  y1={chartBox.h - chartBox.padY}
+                  y2={chartBox.h - chartBox.padY}
+                  className="stroke-gray-300"
+                  strokeWidth="1"
+                />
+
+                {/* x labels */}
+                {WEEK_LABELS.map((w, i) => (
+                  <text
+                    key={w}
+                    x={sx(i)}
+                    y={chartBox.h - 6}
+                    textAnchor="middle"
+                    className="fill-gray-400"
+                    style={{ fontSize: 10 }}
+                  >
+                    {w}
+                  </text>
+                ))}
+
+                {/* animated lines + dots */}
                 {paths.map((p, idx) => (
                   <g key={idx}>
                     <path
@@ -315,21 +361,30 @@ export default function Dashboard() {
                     ))}
                   </g>
                 ))}
-                {WEEK_LABELS.map((w, i) => (
-                  <text
-                    key={w}
-                    x={sx(i)}
-                    y={chartBox.h - 6}
-                    textAnchor="middle"
-                    className="fill-gray-400"
-                    style={{ fontSize: 10 }}
-                  >
-                    {w}
-                  </text>
-                ))}
               </svg>
             </div>
+
+            {/* Weekly legend UNDER chart (three horizontal blocks) */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {series.map((s) => (
+                <div key={s.name} className="flex items-start gap-3">
+                  <span
+                    className={`mt-2 inline-block w-8 h-1.5 rounded-full ${s.color.replace(
+                      "stroke",
+                      "bg"
+                    )}`}
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-800">{s.name}</p>
+                    <p className="text-[11px] leading-4 text-gray-400">Mon – Sun</p>
+                    <p className="text-[11px] leading-4 text-gray-400">7 pts</p>
+                    <p className="text-[11px] leading-4 text-gray-400">Updated weekly</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
 
           {/* overdue list */}
           <div className="bg-white rounded shadow p-4">
@@ -357,8 +412,74 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* borrow request */}
+        <div className="bg-white rounded shadow p-5">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-semibold">Borrow Request</h3>
+            <Link to="#" className="text-xs font-medium text-green-600 hover:underline">
+              View All
+            </Link>
+          </div>
+
+           {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-left border-b border-gray-200 ">
+                  <th className="px-3 py-2">#</th>
+                  <th className="px-3 py-2">Book Name</th>
+                  <th className="px-3 py-2">User Name</th>
+                  <th className="px-3 py-2">Borrowed Date</th>
+                  <th className="px-3 py-2">Returned Date</th>
+                  <th className="px-3 py-2 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {borrowsRequests.map((r, i) => (
+                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-3 py-2">{i + 1}</td>
+                    <td className="px-3 py-2">{r.book}</td>
+                    <td className="px-3 py-2">{r.user}</td>
+                    <td className="px-3 py-2">{r.borrowed}</td>
+                    <td className="px-3 py-2">{r.returned}</td>
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => openConfirm("accept", i)}
+                          className="rounded-md bg-green-600 hover:bg-green-700 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openConfirm("reject", i)}
+                          className="rounded-md bg-red-500 hover:bg-red-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {borrowsRequests.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="py-8 text-center text-gray-500 text-sm"
+                    >
+                      No pending borrow requests.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Recent borrow activities */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Borrow Requests</h2>
+          <h2 className="text-xl font-semibold mb-4">Recent Borrow Activities</h2>
           {loading ? (
             <p>Loading...</p>
           ) : recentBorrows.length > 0 ? (
@@ -404,63 +525,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* borrow request */}
-        <div className="bg-white rounded shadow p-4">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold">Borrow Request</h3>
-            <Link to="#" className="text-xs text-green-600 hover:underline">
-              View All
-            </Link>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left border-b border-gray-200">
-                <th>#</th>
-                <th>Book name</th>
-                <th>User name</th>
-                <th>Borrowed Date</th>
-                <th>Returned Date</th>
-                <th className="text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {borrowsRequests.map((r, i) => (
-                <tr key={i} className="border-b border-gray-200">
-                  <td>{i + 1}</td>
-                  <td>{r.book}</td>
-                  <td>{r.user}</td>
-                  <td>{r.borrowed}</td>
-                  <td>{r.returned}</td>
-                  <td className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openConfirm("accept", i)}
-                        className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openConfirm("reject", i)}
-                        className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {borrowsRequests.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-6 text-center text-gray-500">
-                    No pending borrow requests.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        
       </main>
 
       {/* confirm modal + toast kept same as before... */}
