@@ -49,7 +49,6 @@ function App() {
             <Route path="/manage-books" element={<ManageBooks />} />
             <Route path="/manage-category" element={<ManageCategory />} />
             <Route path="/settings" element={<UserSettings />} />
-            <Route path="/history" element={<UserHistory />} />
             <Route path="/setting" element={<AdminSettings />} />
             <Route path="/manage-feature" element={<ManageFeature />} />
             <Route path="/donation-request" element={<DonationRequest />} />
@@ -107,6 +106,8 @@ function App() {
             <Route path="/user/manage-category" element={<ManageCategory />} />
             <Route path="/user/settings" element={<UserSettings />} />
             <Route path="/upload" element={<UploadBookPage />} />
+            <Route path="/history" element={<UserHistory />} />
+
           </Route>
 
           {/* Quick redirect aliases */}

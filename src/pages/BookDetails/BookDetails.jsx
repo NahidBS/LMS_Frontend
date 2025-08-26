@@ -972,7 +972,7 @@ const deleteReview = async (reviewId) => {
               </div>
 
               {/* Rating Breakdown */}
-              <div className="space-y-2 mt-6">
+              {/* <div className="space-y-2 mt-6">
                 {[5, 4, 3, 2, 1].map((star) => {
                   const starCount = ratingsData.recentReviews?.filter(r => r.rating === star).length || 0;
                   const percentage = ratingsData.recentReviews?.length 
@@ -994,7 +994,7 @@ const deleteReview = async (reviewId) => {
                     </div>
                   );
                 })}
-              </div>
+              </div> */}
 
               <div className="pt-6">
                 <button 

@@ -377,9 +377,9 @@ export default function Layout() {
             <h1 className="text-white text-2xl sm:text-3xl font-semibold">
               Dashboard
             </h1>
-            <button className="bg-sky-600 hover:bg-sky-500 text-white font-medium py-2 px-4 rounded-md text-sm sm:text-base transition-colors duration-200">
+            {/* <button className="bg-sky-600 hover:bg-sky-500 text-white font-medium py-2 px-4 rounded-md text-sm sm:text-base transition-colors duration-200">
               Customise this page
-            </button>
+            </button> */}
           </div>
         </div>
 
