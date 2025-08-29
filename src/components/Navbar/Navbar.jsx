@@ -1,4 +1,5 @@
-// Navbar.jsx
+
+//Navbar.jsx
 import {
   Bell,
   MessageSquare,
@@ -6,6 +7,10 @@ import {
   Upload,
   UserCircle,
   X,
+  GraduationCap,
+  Home,
+  BookOpen,
+  Calendar,
 } from "lucide-react";
 import { CgMenuGridR } from "react-icons/cg";
 import { Link, useNavigate } from "react-router-dom";
@@ -21,12 +26,12 @@ export default function Navbar() {
   const [openNoti, setOpenNoti] = useState(false);
   const [openMsg, setOpenMsg] = useState(false);
   const [openUser, setOpenUser] = useState(false);
-  const searchRef = useRef(null);
 
-  // Notification state
-  const [notifications, setNotifications] = useState([]);
-  const [loadingNoti, setLoadingNoti] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // NEW: grid/app-launcher menu
+  const [openGrid, setOpenGrid] = useState(false);
+
+  const searchRef = useRef(null);
+  const gridRef = useRef(null); // anchor for the grid icon/menu
 
   // Auth state (simple)
   const [user, setUser] = useState(() => {
@@ -52,86 +57,44 @@ export default function Navbar() {
     };
   }, []);
 
-  // Load notifications when user is logged in and notification panel is opened
-  useEffect(() => {
-    if (!user || !openNoti) return;
-    
-    const fetchNotifications = async () => {
-      try {
-        setLoadingNoti(true);
-        const response = await fetch(`/api/notifications/unread/${user.id}`);
-        if (!response.ok) throw new Error('Failed to fetch notifications');
-        const data = await response.json();
-        setNotifications(data);
-        setUnreadCount(data.filter(n => !n.read).length);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-        // Fallback to demo data if API fails
-        setNotifications([
-          {
-            id: "n1",
-            message: "New review on 'Clean Code'",
-            timestamp: new Date(Date.now() - 120000).toISOString(),
-            read: false
-          },
-          {
-            id: "n2",
-            message: "Your upload was approved",
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            read: false
-          }
-        ]);
-      } finally {
-        setLoadingNoti(false);
-      }
-    };
-
-    fetchNotifications();
-  }, [openNoti, user]);
-
   // Close popups on outside click
   useEffect(() => {
     const onDocClick = (e) => {
       if (!searchRef.current) return;
-      if (!searchRef.current.contains(e.target)) {
-        // don't close search if user is typing; only close popovers
+
+      // Close popovers if click is outside both search area and the grid launcher
+      const clickedInsideSearch = searchRef.current.contains(e.target);
+      const clickedInsideGrid =
+        gridRef.current && gridRef.current.contains(e.target);
+
+      if (!clickedInsideSearch && !clickedInsideGrid) {
         setOpenNoti(false);
         setOpenMsg(false);
         setOpenUser(false);
+        setOpenGrid(false); // close grid as well
       }
     };
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  // Demo message data (customize freely later)
+  // Demo notification/message data (customize freely later)
+  const notifications = [
+    { id: "n1", title: "New review on “Clean Code”", time: "2m ago" },
+    { id: "n2", title: "Your upload was approved", time: "1h ago" },
+    { id: "n3", title: "Weekly digest is ready", time: "Yesterday" },
+  ];
   const messages = [
-    {
-      id: "m1",
-      from: "Admin",
-      text: "Your membership has been upgraded.",
-      time: "5m",
-    },
-    {
-      id: "m2",
-      from: "Support",
-      text: "Let us know if the PDF link works.",
-      time: "1h",
-    },
-    {
-      id: "m3",
-      from: "Librarian",
-      text: "Return reminder for 2 books due tomorrow.",
-      time: "Yesterday",
-    },
+    { id: "m1", from: "Admin", text: "Your membership has been upgraded.", time: "5m" },
+    { id: "m2", from: "Support", text: "Let us know if the PDF link works.", time: "1h" },
+    { id: "m3", from: "Librarian", text: "Return reminder for 2 books due tomorrow.", time: "Yesterday" },
   ];
 
   // Live search results (by title, authors, category, summary)
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    const hit = (v) =>
-      typeof v === "string" && v.toLowerCase().includes(q);
+    const hit = (v) => typeof v === "string" && v.toLowerCase().includes(q);
     return books
       .filter(
         (b) =>
@@ -163,48 +126,12 @@ export default function Navbar() {
       navigate("/");
     } else {
       // (Demo) mark as signed in; navigate to dashboard
-      const demoUser = { 
-        name: "Member",
-        id: "1" // Adding ID for notification API
-      };
+      const demoUser = { name: "Member" };
       localStorage.setItem("authUser", JSON.stringify(demoUser));
       setUser(demoUser);
       setOpenUser(false);
       navigate("/dashboard");
     }
-  };
-
-  const markAsRead = async (id) => {
-    try {
-      const response = await fetch(`/api/notifications/mark-as-read/${id}`, {
-        method: 'POST'
-      });
-      
-      if (!response.ok) throw new Error('Failed to mark as read');
-      
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? {...n, read: true} : n)
-      );
-      setUnreadCount(prev => prev - 1);
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  };
-
-  const formatTime = (timestamp) => {
-    const now = new Date();
-    const date = new Date(timestamp);
-    const diffInSeconds = Math.floor((now - date) / 1000);
-    
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
   };
 
   return (
@@ -220,7 +147,80 @@ export default function Navbar() {
               className="h-[80] w-auto max-h-[120px] object-contain cursor-pointer px-15"
             />
           </Link>
-          <CgMenuGridR className="w-6 h-6 text-gray-500 cursor-pointer" />
+
+          {/* Grid / App Launcher */}
+          <div className="relative ml-2" ref={gridRef}>
+            <button
+              type="button"
+              aria-label="Open app menu"
+              onClick={() => {
+                setOpenGrid((v) => !v);
+                // close others to avoid overlap
+                setOpenNoti(false);
+                setOpenMsg(false);
+                setOpenUser(false);
+              }}
+              className="inline-flex items-center justify-center rounded-md p-1.5 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              <CgMenuGridR className="w-6 h-6 text-gray-600" />
+            </button>
+
+            {openGrid && (
+              <div className="absolute left-0 top-10 w-64 bg-white border border-gray-200 rounded-xl shadow-lg">
+                {/* Subtle elevation and rounded look to match the screenshot */}
+                <ul className="py-2">
+                  <li>
+                    <Link
+                      to="https://lms.elearning23.com/my/courses.php"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-gray-800"
+                      onClick={() => setOpenGrid(false)}
+                    >
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                        <GraduationCap className="w-4 h-4 text-gray-700" />
+                      </span>
+                      <span className="text-sm font-medium">My courses</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-gray-800"
+                      onClick={() => setOpenGrid(false)}
+                    >
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                        <Home className="w-4 h-4 text-gray-700" />
+                      </span>
+                      <span className="text-sm font-medium">Site home</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="https://lms.elearning23.com/course/"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-gray-800"
+                      onClick={() => setOpenGrid(false)}
+                    >
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                        <BookOpen className="w-4 h-4 text-gray-700" />
+                      </span>
+                      <span className="text-sm font-medium">All courses</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/calendar"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-gray-800"
+                      onClick={() => setOpenGrid(false)}
+                    >
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                        <Calendar className="w-4 h-4 text-gray-700" />
+                      </span>
+                      <span className="text-sm font-medium">Calendar</span>
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: Upload button + icons */}
@@ -244,14 +244,13 @@ export default function Navbar() {
                 setOpenNoti((v) => !v);
                 setOpenMsg(false);
                 setOpenUser(false);
+                setOpenGrid(false);
               }}
               className="relative"
             >
               <Bell className="w-5 h-5 text-gray-700 cursor-pointer" />
               {/* unread dot */}
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full" />
-              )}
+              <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full" />
             </button>
 
             {/* Messages */}
@@ -262,6 +261,7 @@ export default function Navbar() {
                 setOpenMsg((v) => !v);
                 setOpenNoti(false);
                 setOpenUser(false);
+                setOpenGrid(false);
               }}
             >
               <MessageSquare className="w-5 h-5 text-gray-700 cursor-pointer" />
@@ -271,7 +271,10 @@ export default function Navbar() {
             <button
               type="button"
               aria-label="Search"
-              onClick={() => setShowSearch((v) => !v)}
+              onClick={() => {
+                setShowSearch((v) => !v);
+                setOpenGrid(false);
+              }}
             >
               <Search className="w-5 h-5 text-gray-700 cursor-pointer" />
             </button>
@@ -284,6 +287,7 @@ export default function Navbar() {
                 setOpenUser((v) => !v);
                 setOpenNoti(false);
                 setOpenMsg(false);
+                setOpenGrid(false);
               }}
             >
               <UserCircle className="w-6 h-6 text-gray-700 cursor-pointer" />
@@ -292,37 +296,22 @@ export default function Navbar() {
             {/* Notifications panel */}
             {openNoti && (
               <div className="absolute right-0 top-10 w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                <div className="px-4 py-3 border-b font-semibold text-gray-800 flex justify-between items-center">
-                  <span>Notifications</span>
-                  {loadingNoti && (
-                    <span className="text-xs text-gray-500">Loading...</span>
-                  )}
+                <div className="px-4 py-3 border-b font-semibold text-gray-800">
+                  Notifications
                 </div>
-                {notifications.length === 0 ? (
-                  <div className="px-4 py-6 text-sm text-gray-500 text-center">
-                    {loadingNoti ? 'Loading...' : 'No new notifications'}
-                  </div>
-                ) : (
-                  <ul className="max-h-80 overflow-auto">
-                    {notifications.map((n) => (
-                      <li
-                        key={n.id}
-                        className={`px-4 py-3 hover:bg-gray-50 text-sm ${!n.read ? 'bg-blue-50' : 'text-gray-700'}`}
-                        onClick={() => markAsRead(n.id)}
-                      >
-                        <div className="font-medium">{n.message}</div>
-                        <div className="text-xs text-gray-500">
-                          {formatTime(n.timestamp)}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <div 
-                  className="px-4 py-2 text-xs text-sky-600 font-medium hover:underline cursor-pointer"
-                  onClick={() => navigate('/notifications')}
-                >
-                  View all notifications
+                <ul className="max-h-80 overflow-auto">
+                  {notifications.map((n) => (
+                    <li
+                      key={n.id}
+                      className="px-4 py-3 hover:bg-gray-50 text-sm text-gray-700"
+                    >
+                      <div className="font-medium">{n.title}</div>
+                      <div className="text-xs text-gray-500">{n.time}</div>
+                    </li>
+                  ))}
+                </ul>
+                <div className="px-4 py-2 text-xs text-sky-600 font-medium hover:underline cursor-pointer">
+                  View all
                 </div>
               </div>
             )}
@@ -387,19 +376,6 @@ export default function Navbar() {
                       Upload a Book
                     </button>
                   </li>
-                  {user && (
-                    <li>
-                      <button
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        onClick={() => {
-                          setOpenUser(false);
-                          navigate("/notifications");
-                        }}
-                      >
-                        Notifications
-                      </button>
-                    </li>
-                  )}
                 </ul>
                 <div className="border-t">
                   <button
@@ -457,7 +433,7 @@ export default function Navbar() {
               <div className="absolute left-0 right-0 top-12 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                 {results.length === 0 ? (
                   <div className="px-4 py-6 text-sm text-gray-500">
-                    No matches for "{query}"
+                    No matches for “{query}”
                   </div>
                 ) : (
                   <ul className="max-h-80 overflow-auto divide-y">
